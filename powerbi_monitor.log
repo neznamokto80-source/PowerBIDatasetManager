@@ -1,0 +1,193 @@
+2026-05-05 00:11:45,000 - src.core.dependencies - INFO - Все зависимости установлены.
+2026-05-05 00:11:45,004 - src.ui.main_window - INFO - Система готова к подключению. Нажмите кнопку 'Подключить'.
+2026-05-05 00:15:59,064 - src.core.dependencies - INFO - Все зависимости установлены.
+2026-05-05 00:15:59,070 - src.ui.main_window - INFO - Система готова к подключению. Нажмите кнопку 'Подключить'.
+2026-05-05 00:16:00,833 - src.ui.main_window - INFO - Попытка подключения к Power BI...
+2026-05-05 00:16:00,847 - azure.identity._internal.decorators - WARNING - AzureCliCredential.get_token failed: Azure CLI not found on path
+2026-05-05 00:16:00,883 - azure.core.pipeline.policies.http_logging_policy - INFO - Request URL: 'https://login.microsoftonline.com/organizations/v2.0/.well-known/openid-configuration'
+Request method: 'GET'
+Request headers:
+    'User-Agent': 'azsdk-python-identity/1.25.3 Python/3.13.13 (Windows-10-10.0.19045-SP0)'
+No body was attached to the request
+2026-05-05 00:16:01,757 - azure.core.pipeline.policies.http_logging_policy - INFO - Response status: 200
+Response headers:
+    'Cache-Control': 'max-age=86400, private'
+    'Content-Type': 'application/json; charset=utf-8'
+    'Strict-Transport-Security': 'REDACTED'
+    'X-Content-Type-Options': 'REDACTED'
+    'Access-Control-Allow-Origin': 'REDACTED'
+    'Access-Control-Allow-Methods': 'REDACTED'
+    'P3P': 'REDACTED'
+    'x-ms-request-id': 'affcfb92-6858-49ae-82a0-7ff529020101'
+    'x-ms-ests-server': 'REDACTED'
+    'x-ms-srs': 'REDACTED'
+    'Content-Security-Policy-Report-Only': 'REDACTED'
+    'X-XSS-Protection': 'REDACTED'
+    'Set-Cookie': 'REDACTED'
+    'Date': 'Mon, 04 May 2026 19:16:01 GMT'
+    'Content-Length': '1777'
+2026-05-05 00:16:10,663 - azure.core.pipeline.policies.http_logging_policy - INFO - Request URL: 'https://login.microsoftonline.com/organizations/oauth2/v2.0/token'
+Request method: 'POST'
+Request headers:
+    'Content-Type': 'application/x-www-form-urlencoded'
+    'Accept': 'application/json'
+    'x-client-sku': 'REDACTED'
+    'x-client-ver': 'REDACTED'
+    'x-client-os': 'REDACTED'
+    'x-ms-lib-capability': 'REDACTED'
+    'client-request-id': 'REDACTED'
+    'x-client-current-telemetry': 'REDACTED'
+    'x-client-last-telemetry': 'REDACTED'
+    'X-AnchorMailbox': 'REDACTED'
+    'User-Agent': 'azsdk-python-identity/1.25.3 Python/3.13.13 (Windows-10-10.0.19045-SP0)'
+A body is sent with the request
+2026-05-05 00:16:10,913 - azure.core.pipeline.policies.http_logging_policy - INFO - Response status: 200
+Response headers:
+    'Cache-Control': 'no-store, no-cache'
+    'Pragma': 'no-cache'
+    'Content-Type': 'application/json; charset=utf-8'
+    'Expires': '-1'
+    'Strict-Transport-Security': 'REDACTED'
+    'X-Content-Type-Options': 'REDACTED'
+    'x-ms-clientdata': 'REDACTED'
+    'P3P': 'REDACTED'
+    'client-request-id': 'REDACTED'
+    'x-ms-request-id': '73200fc0-e464-47fe-af60-8fb868670e00'
+    'x-ms-ests-server': 'REDACTED'
+    'x-ms-clitelem': 'REDACTED'
+    'x-ms-srs': 'REDACTED'
+    'Content-Security-Policy-Report-Only': 'REDACTED'
+    'X-XSS-Protection': 'REDACTED'
+    'Set-Cookie': 'REDACTED'
+    'Date': 'Mon, 04 May 2026 19:16:10 GMT'
+    'Content-Length': '6263'
+2026-05-05 00:16:10,914 - azure.identity._internal.interactive - INFO - InteractiveBrowserCredential.get_token succeeded
+2026-05-05 00:16:10,915 - src.core.powerbi_client - INFO - Аутентификация через Interactive Browser успешна.
+2026-05-05 00:16:10,915 - src.ui.main_window - INFO - ✓ Аутентификация успешна (метод: Interactive Browser)
+2026-05-05 00:16:12,411 - src.ui.main_window - INFO - ✓ Загружено рабочих областей: 2
+2026-05-05 00:16:12,413 - src.ui.main_window - INFO - Выбрана рабочая область: PROFISOFT
+2026-05-05 00:16:12,414 - src.ui.main_window - INFO - Загрузка датасетов из рабочей области 694c8d4f-65f6-45f1-95a2-0edbc610db4c...
+2026-05-05 00:16:12,671 - src.ui.main_window - INFO - ✓ Загружено датасетов: 13
+2026-05-05 00:16:12,676 - src.ui.main_window - INFO - UI обновлен для состояния 'подключено'
+2026-05-05 00:16:12,676 - src.ui.main_window - INFO - Загрузка датасетов из рабочей области 694c8d4f-65f6-45f1-95a2-0edbc610db4c...
+2026-05-05 00:16:12,809 - src.ui.main_window - INFO - ✓ Загружено датасетов: 13
+2026-05-05 00:16:27,890 - src.ui.main_window - INFO - Загрузка датасетов из рабочей области 694c8d4f-65f6-45f1-95a2-0edbc610db4c...
+2026-05-05 00:16:28,034 - src.ui.main_window - INFO - ✓ Загружено датасетов: 13
+2026-05-05 00:16:31,585 - src.ui.main_window - INFO - Обновление списка рабочих областей...
+2026-05-05 00:16:31,733 - src.ui.main_window - INFO - ✓ Загружено рабочих областей: 2
+2026-05-05 00:16:31,733 - src.ui.main_window - INFO - Выбрана рабочая область: PROFISOFT
+2026-05-05 00:16:31,733 - src.ui.main_window - INFO - Загрузка датасетов из рабочей области 694c8d4f-65f6-45f1-95a2-0edbc610db4c...
+2026-05-05 00:16:31,865 - src.ui.main_window - INFO - ✓ Загружено датасетов: 13
+2026-05-05 00:16:31,867 - src.ui.main_window - INFO - Загрузка датасетов из рабочей области 694c8d4f-65f6-45f1-95a2-0edbc610db4c...
+2026-05-05 00:16:31,999 - src.ui.main_window - INFO - ✓ Загружено датасетов: 13
+2026-05-05 00:44:34,061 - src.core.dependencies - INFO - Все зависимости установлены.
+2026-05-05 00:44:34,064 - src.ui.methods.ui_state - INFO - Система готова к подключению. Нажмите кнопку 'Подключить'.
+2026-05-05 00:44:35,424 - src.ui.methods.ui_state - INFO - Попытка подключения к Power BI...
+2026-05-05 00:44:35,438 - azure.identity._internal.decorators - WARNING - AzureCliCredential.get_token failed: Azure CLI not found on path
+2026-05-05 00:44:35,457 - azure.core.pipeline.policies.http_logging_policy - INFO - Request URL: 'https://login.microsoftonline.com/organizations/v2.0/.well-known/openid-configuration'
+Request method: 'GET'
+Request headers:
+    'User-Agent': 'azsdk-python-identity/1.25.3 Python/3.14.3 (Windows-10-10.0.19045-SP0)'
+No body was attached to the request
+2026-05-05 00:44:36,337 - azure.core.pipeline.policies.http_logging_policy - INFO - Response status: 200
+Response headers:
+    'Cache-Control': 'max-age=86400, private'
+    'Content-Type': 'application/json; charset=utf-8'
+    'Strict-Transport-Security': 'REDACTED'
+    'X-Content-Type-Options': 'REDACTED'
+    'Access-Control-Allow-Origin': 'REDACTED'
+    'Access-Control-Allow-Methods': 'REDACTED'
+    'P3P': 'REDACTED'
+    'x-ms-request-id': 'bdbd1903-76e7-47d2-ba86-63dc0d724500'
+    'x-ms-ests-server': 'REDACTED'
+    'x-ms-srs': 'REDACTED'
+    'Content-Security-Policy-Report-Only': 'REDACTED'
+    'X-XSS-Protection': 'REDACTED'
+    'Set-Cookie': 'REDACTED'
+    'Date': 'Mon, 04 May 2026 19:44:35 GMT'
+    'Content-Length': '1777'
+2026-05-05 00:44:47,566 - azure.core.pipeline.policies.http_logging_policy - INFO - Request URL: 'https://login.microsoftonline.com/organizations/oauth2/v2.0/token'
+Request method: 'POST'
+Request headers:
+    'Content-Type': 'application/x-www-form-urlencoded'
+    'Accept': 'application/json'
+    'x-client-sku': 'REDACTED'
+    'x-client-ver': 'REDACTED'
+    'x-client-os': 'REDACTED'
+    'x-ms-lib-capability': 'REDACTED'
+    'client-request-id': 'REDACTED'
+    'x-client-current-telemetry': 'REDACTED'
+    'x-client-last-telemetry': 'REDACTED'
+    'X-AnchorMailbox': 'REDACTED'
+    'User-Agent': 'azsdk-python-identity/1.25.3 Python/3.14.3 (Windows-10-10.0.19045-SP0)'
+A body is sent with the request
+2026-05-05 00:44:47,758 - azure.core.pipeline.policies.http_logging_policy - INFO - Response status: 200
+Response headers:
+    'Cache-Control': 'no-store, no-cache'
+    'Pragma': 'no-cache'
+    'Content-Type': 'application/json; charset=utf-8'
+    'Expires': '-1'
+    'Strict-Transport-Security': 'REDACTED'
+    'X-Content-Type-Options': 'REDACTED'
+    'x-ms-clientdata': 'REDACTED'
+    'P3P': 'REDACTED'
+    'client-request-id': 'REDACTED'
+    'x-ms-request-id': '1ff3b1d3-0218-4a40-a4bf-0bb630e96b00'
+    'x-ms-ests-server': 'REDACTED'
+    'x-ms-clitelem': 'REDACTED'
+    'x-ms-srs': 'REDACTED'
+    'Content-Security-Policy-Report-Only': 'REDACTED'
+    'X-XSS-Protection': 'REDACTED'
+    'Set-Cookie': 'REDACTED'
+    'Date': 'Mon, 04 May 2026 19:44:47 GMT'
+    'Content-Length': '6267'
+2026-05-05 00:44:47,761 - azure.identity._internal.interactive - INFO - InteractiveBrowserCredential.get_token succeeded
+2026-05-05 00:44:47,763 - src.core.powerbi_client - INFO - Аутентификация через Interactive Browser успешна.
+2026-05-05 00:44:47,763 - src.ui.methods.ui_state - INFO - ✓ Аутентификация успешна (метод: Interactive Browser)
+2026-05-05 00:44:48,940 - src.ui.methods.ui_state - INFO - ✓ Загружено рабочих областей: 2
+2026-05-05 00:44:48,943 - src.ui.methods.ui_state - INFO - Выбрана рабочая область: PROFISOFT
+2026-05-05 00:44:48,943 - src.ui.methods.ui_state - INFO - Загрузка датасетов из рабочей области 694c8d4f-65f6-45f1-95a2-0edbc610db4c...
+2026-05-05 00:44:49,087 - src.ui.methods.ui_state - INFO - ✓ Загружено датасетов: 13
+2026-05-05 00:44:49,095 - src.ui.methods.ui_state - INFO - UI обновлен для состояния 'подключено'
+2026-05-05 00:44:49,096 - src.ui.methods.ui_state - INFO - Загрузка датасетов из рабочей области 694c8d4f-65f6-45f1-95a2-0edbc610db4c...
+2026-05-05 00:44:49,235 - src.ui.methods.ui_state - INFO - ✓ Загружено датасетов: 13
+2026-05-05 00:44:52,632 - src.ui.methods.ui_state - INFO - Обновление списка рабочих областей...
+2026-05-05 00:44:52,762 - src.ui.methods.ui_state - INFO - ✓ Загружено рабочих областей: 2
+2026-05-05 00:44:52,763 - src.ui.methods.ui_state - INFO - Выбрана рабочая область: PROFISOFT
+2026-05-05 00:44:52,764 - src.ui.methods.ui_state - INFO - Загрузка датасетов из рабочей области 694c8d4f-65f6-45f1-95a2-0edbc610db4c...
+2026-05-05 00:44:52,916 - src.ui.methods.ui_state - INFO - ✓ Загружено датасетов: 13
+2026-05-05 00:44:52,922 - src.ui.methods.ui_state - INFO - Загрузка датасетов из рабочей области 694c8d4f-65f6-45f1-95a2-0edbc610db4c...
+2026-05-05 00:44:53,051 - src.ui.methods.ui_state - INFO - ✓ Загружено датасетов: 13
+2026-05-05 00:44:54,617 - src.ui.methods.ui_state - INFO - Загрузка датасетов из рабочей области 694c8d4f-65f6-45f1-95a2-0edbc610db4c...
+2026-05-05 00:44:54,760 - src.ui.methods.ui_state - INFO - ✓ Загружено датасетов: 13
+2026-05-05 00:44:58,089 - src.ui.methods.ui_state - INFO - ✓ Мониторинг запущен (интервал: 60 сек)
+2026-05-05 00:44:58,089 - src.ui.methods.ui_state - INFO - Обновление данных...
+2026-05-05 00:44:58,089 - src.ui.methods.ui_state - INFO - Загрузка датасетов из рабочей области 694c8d4f-65f6-45f1-95a2-0edbc610db4c...
+2026-05-05 00:44:58,228 - src.ui.methods.ui_state - INFO - ✓ Загружено датасетов: 13
+2026-05-05 00:44:58,229 - src.ui.methods.ui_state - INFO - ✓ Данные обновлены
+2026-05-05 00:45:24,738 - src.ui.methods.ui_state - INFO - Применены фильтры. Показано датасетов: 13
+2026-05-05 00:45:26,058 - src.ui.methods.ui_state - INFO - Применены фильтры. Показано датасетов: 13
+2026-05-05 00:45:26,641 - src.ui.methods.ui_state - INFO - Применены фильтры. Показано датасетов: 13
+2026-05-05 00:45:27,424 - src.ui.methods.ui_state - INFO - Применены фильтры. Показано датасетов: 13
+2026-05-05 00:45:27,923 - src.ui.methods.ui_state - INFO - Применены фильтры. Показано датасетов: 13
+2026-05-05 00:45:28,384 - src.ui.methods.ui_state - INFO - Применены фильтры. Показано датасетов: 13
+2026-05-05 00:45:28,825 - src.ui.methods.ui_state - INFO - Применены фильтры. Показано датасетов: 0
+2026-05-05 00:45:29,531 - src.ui.methods.ui_state - INFO - Применены фильтры. Показано датасетов: 13
+2026-05-05 00:45:30,776 - src.ui.methods.ui_state - INFO - Применены фильтры. Показано датасетов: 0
+2026-05-05 00:45:31,424 - src.ui.methods.ui_state - INFO - Применены фильтры. Показано датасетов: 13
+2026-05-05 00:45:31,978 - src.ui.methods.ui_state - INFO - Применены фильтры. Показано датасетов: 0
+2026-05-05 00:45:32,544 - src.ui.methods.ui_state - INFO - Применены фильтры. Показано датасетов: 13
+2026-05-05 00:45:33,120 - src.ui.methods.ui_state - INFO - Применены фильтры. Показано датасетов: 13
+2026-05-05 00:45:33,762 - src.ui.methods.ui_state - INFO - Применены фильтры. Показано датасетов: 13
+2026-05-05 00:45:34,249 - src.ui.methods.ui_state - INFO - Применены фильтры. Показано датасетов: 0
+2026-05-05 00:45:34,713 - src.ui.methods.ui_state - INFO - Применены фильтры. Показано датасетов: 13
+2026-05-05 00:45:35,273 - src.ui.methods.ui_state - INFO - Применены фильтры. Показано датасетов: 0
+2026-05-05 00:45:35,760 - src.ui.methods.ui_state - INFO - Применены фильтры. Показано датасетов: 13
+2026-05-05 00:45:36,296 - src.ui.methods.ui_state - INFO - Применены фильтры. Показано датасетов: 13
+2026-05-05 00:45:36,890 - src.ui.methods.ui_state - INFO - Применены фильтры. Показано датасетов: 13
+2026-05-05 00:45:37,387 - src.ui.methods.ui_state - INFO - Применены фильтры. Показано датасетов: 13
+2026-05-05 00:45:37,896 - src.ui.methods.ui_state - INFO - Применены фильтры. Показано датасетов: 13
+2026-05-05 00:45:38,224 - src.ui.methods.ui_state - INFO - Применены фильтры. Показано датасетов: 13
+2026-05-05 00:45:38,800 - src.ui.methods.ui_state - INFO - Применены фильтры. Показано датасетов: 13
+2026-05-05 00:45:39,145 - src.ui.methods.ui_state - INFO - Применены фильтры. Показано датасетов: 0
+2026-05-05 00:45:39,609 - src.ui.methods.ui_state - INFO - Применены фильтры. Показано датасетов: 13
