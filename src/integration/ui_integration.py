@@ -93,12 +93,13 @@ class UIIntegration:
                 'refresh_coverage': 0
             }
     
-    def get_dataset_list(self, workspace_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_dataset_list(self, workspace_id: Optional[str] = None, progress_callback=None) -> List[Dict[str, Any]]:
         """
-        Возвращает список датасетов.
+        Возвращает список датасетов с возможностью отслеживать прогресс.
         
         Args:
             workspace_id: ID рабочей области (если None, возвращает все датасеты)
+            progress_callback: функция, принимающая (current, total, message)
         
         Returns:
             Список датасетов с дополнительной информацией
@@ -130,7 +131,11 @@ class UIIntegration:
             
             # Обогащаем данные информацией о последнем обновлении и расписании
             enriched_datasets = []
-            for dataset in datasets:
+            total = len(datasets)
+            for idx, dataset in enumerate(datasets):
+                if progress_callback:
+                    progress_callback(idx + 1, total, f"Обработка {dataset.get('name', '...')}")
+                
                 enriched = dataset.copy()
                 dataset_id = dataset.get('id')
                 current_workspace_id = dataset.get('workspace_id') or workspace_id
