@@ -32,10 +32,7 @@ class UIPanels:
         panel = QWidget()
         layout = QVBoxLayout(panel)
         
-        # Кнопка подключения
-        connect_btn = QPushButton("Подключить")
-        connect_btn.clicked.connect(self.main.connect_to_powerbi)
-        layout.addWidget(connect_btn)
+        # Кнопка подключения теперь в верхней панели
         
         # Группа "Рабочие области"
         workspace_group = QGroupBox("Рабочие области")
@@ -59,6 +56,8 @@ class UIPanels:
         self.main.dataset_tree = QTreeWidget()
         self.main.dataset_tree.setHeaderLabels(["Name", "Status", "Refresh"])
         self.main.dataset_tree.itemClicked.connect(self.main.on_dataset_selected)
+        # Увеличиваем минимальную высоту дерева датасетов
+        self.main.dataset_tree.setMinimumHeight(300)
         dataset_layout.addWidget(self.main.dataset_tree)
         
         refresh_datasets_btn = QPushButton("Обновить статусы")
@@ -81,7 +80,7 @@ class UIPanels:
         filter_layout.addWidget(self.main.filter_recent)
         
         # Новые фильтры
-        self.main.filter_errors = QCheckBox("с ошибками")
+        self.main.filter_errors = QCheckBox("С ошибками при обновлении")
         self.main.filter_errors.stateChanged.connect(self.main.apply_filters)
         filter_layout.addWidget(self.main.filter_errors)
         
@@ -97,7 +96,7 @@ class UIPanels:
         layout.addWidget(filter_group)
 
         # Группа "Мониторинг"
-        monitor_group = QGroupBox("Мониторинг в реальном времени")
+        monitor_group = QGroupBox("Мониторинг (переодичность опроса 30 сек)")
         monitor_layout = QVBoxLayout()
 
         self.main.monitor_status = QLabel("Мониторинг не активен")
@@ -138,9 +137,9 @@ class UIPanels:
         # history_tab = self.create_history_tab()
         # self.main.tab_widget.addTab(history_tab, "История")
         
-        # Вкладка "Логи"
-        logs_tab = self.create_logs_tab()
-        self.main.tab_widget.addTab(logs_tab, "Логи")
+        # Вкладка "Логи" удалена - логи теперь отображаются в правой панели
+        # logs_tab = self.create_logs_tab()
+        # self.main.tab_widget.addTab(logs_tab, "Логи")
         
         layout.addWidget(self.main.tab_widget)
         return panel
@@ -193,9 +192,15 @@ class UIPanels:
         
         layout.addWidget(self.main.dataset_table)
         
-        # Прогресс-бар для обновлений
+        # Прогресс-бар для обновлений (как в примере powerbi_monitor_ui.py)
         self.main.progress_bar = QProgressBar()
-        self.main.progress_bar.setVisible(False)
+        self.main.progress_bar.setVisible(True)  # Видим по умолчанию
+        self.main.progress_bar.setMinimumHeight(20)
+        # Убрано ограничение по ширине - растягивается по ширине окна
+        # Формат: только процент выполнения
+        self.main.progress_bar.setFormat("%p%")
+        self.main.progress_bar.setRange(0, 100)
+        self.main.progress_bar.setValue(0)
         layout.addWidget(self.main.progress_bar)
         
         return tab
@@ -290,3 +295,24 @@ class UIPanels:
         
         layout.addWidget(self.main.logs_text)
         return tab
+    
+    def create_logs_panel(self):
+        """Создает панель логов для правой стороны."""
+        panel = QWidget()
+        layout = QVBoxLayout(panel)
+        
+        # Текстовое поле для логов (то же самое, что и во вкладке)
+        # Если logs_text уже создан, используем его, иначе создаём новый
+        if not hasattr(self.main, 'logs_text'):
+            self.main.logs_text = QTextEdit()
+            self.main.logs_text.setReadOnly(True)
+            self.main.logs_text.setFont(QFont("Courier", 10))
+        
+        layout.addWidget(self.main.logs_text)
+        
+        # Кнопка очистки логов (опционально)
+        clear_btn = QPushButton("Очистить логи")
+        clear_btn.clicked.connect(lambda: self.main.logs_text.clear())
+        layout.addWidget(clear_btn)
+        
+        return panel

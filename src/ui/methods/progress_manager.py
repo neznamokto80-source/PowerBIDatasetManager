@@ -47,7 +47,12 @@ class ProgressManager:
         if text:
             progress_bar.setFormat(text)
         else:
-            progress_bar.setFormat("Загрузка...")
+            if indeterminate:
+                # Неопределенный режим - текст по умолчанию "Загрузка..."
+                progress_bar.setFormat("Загрузка...")
+            else:
+                # Определенный режим - формат только процента
+                progress_bar.setFormat("%p%")
     
     def hide(self):
         """Скрывает прогресс-бар."""

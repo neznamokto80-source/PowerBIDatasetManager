@@ -65,6 +65,11 @@ class UIStateMethods:
         # Отключаем мониторинг
         self.main_window.start_monitor_btn.setEnabled(False)
         self.main_window.stop_monitor_btn.setEnabled(False)
+        
+        # Обновляем кнопку подключения
+        if hasattr(self.main_window, 'connect_btn'):
+            self.main_window.connect_btn.setText("Подключить")
+            self.main_window.connect_btn.setEnabled(True)
     
     def update_ui_for_connected_state(self):
         """Обновляет UI для состояния 'подключено'."""
@@ -99,12 +104,7 @@ class UIStateMethods:
         self.main_window.log_message("UI обновлен для состояния 'подключено'")
     
     def log_message(self, message: str):
-        """Добавляет сообщение в лог."""
-        timestamp = QDateTime.currentDateTime().toString("hh:mm:ss")
-        log_entry = f"[{timestamp}] {message}"
-        
-        if hasattr(self.main_window, 'logs_text'):
-            self.main_window.logs_text.append(log_entry)
-        
-        # Также выводим в консоль для отладки
+        """Добавляет сообщение в лог через стандартный логгер."""
+        # Логируем через стандартный логгер - обработчик QTextEditLogHandler
+        # сам добавит запись в UI с правильным форматом
         logger.info(message)

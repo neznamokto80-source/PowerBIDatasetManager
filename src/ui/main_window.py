@@ -14,7 +14,7 @@ from PyQt6.QtWidgets import (
     QTabWidget, QMessageBox, QProgressBar, QSplitter, QTreeWidget,
     QTreeWidgetItem, QHeaderView, QToolBar, QStatusBar, QDialog,
     QFormLayout, QLineEdit, QTimeEdit, QCheckBox, QSpinBox,
-    QDialogButtonBox, QAbstractItemView, QMenu
+    QDialogButtonBox, QAbstractItemView, QMenu, QApplication
 )
 from PyQt6.QtCore import Qt, QTimer, QDateTime, QDate, QTime, pyqtSignal
 from PyQt6.QtGui import QIcon, QFont, QAction, QPalette, QColor
@@ -28,11 +28,49 @@ from src.integration.ui_integration import UIIntegration, UIDataProvider
 # Импорт классов методов
 from src.ui.methods.connection import ConnectionMethods
 from src.ui.methods.data_loading import DataLoadingMethods
+
+
+class QTextEditLogHandler(logging.Handler):
+    """Обработчик логов, который записывает сообщения в QTextEdit."""
+    
+    def __init__(self, text_edit):
+        super().__init__()
+        self.text_edit = text_edit
+        # Устанавливаем формат, соответствующий настройкам basicConfig
+        self.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+    
+    def emit(self, record):
+        """Записывает запись лога в QTextEdit."""
+        try:
+            msg = self.format(record)
+            # Используем invokeMethod для потокобезопасного обновления UI
+            from PyQt6.QtCore import QMetaObject, Qt, Q_ARG, QThread
+            from PyQt6.QtWidgets import QApplication
+            # Проверяем, что text_edit существует
+            if self.text_edit is None:
+                return
+            app = QApplication.instance()
+            if app is None:
+                # Если приложение не существует, просто добавляем напрямую (редкий случай)
+                self.text_edit.append(msg)
+                return
+            # Если мы в главном потоке, можно вызывать напрямую
+            if QThread.currentThread() == app.thread():
+                self.text_edit.append(msg)
+            else:
+                QMetaObject.invokeMethod(self.text_edit, "append", Qt.ConnectionType.QueuedConnection, Q_ARG(str, msg))
+        except Exception as e:
+            # Логируем ошибку в консоль, чтобы не потерять
+            import sys, traceback
+            print(f"Ошибка в QTextEditLogHandler: {e}", file=sys.stderr)
+            traceback.print_exc()
+            self.handleError(record)
 from src.ui.methods.ui_state import UIStateMethods
 from src.ui.methods.event_handlers import EventHandlers
 from src.ui.methods.filtering import FilteringMethods
 from src.ui.methods.monitoring import MonitoringMethods
 from src.ui.methods.refresh_management import RefreshManagementMethods
+from src.ui.methods.help_methods import HelpMethods
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +93,7 @@ class PowerBIMonitorUI(QMainWindow):
         self.workspaces = []
         self.datasets = []
         self.auto_refresh_enabled = False  # Флаг автообновления
+        self.current_theme = "Светлая"  # Текущая тема по умолчанию
         
         # Инициализация компонентов UI
         self.ui_components = UIComponents(self)
@@ -74,6 +113,7 @@ class PowerBIMonitorUI(QMainWindow):
         self.filtering_methods = FilteringMethods(self)
         self.monitoring_methods = MonitoringMethods(self)
         self.refresh_management_methods = RefreshManagementMethods(self)
+        self.help_methods = HelpMethods(self)
     
     def init_ui(self):
         """Инициализация пользовательского интерфейса."""
@@ -90,28 +130,71 @@ class PowerBIMonitorUI(QMainWindow):
         # Панель инструментов удалена по требованию
         # self.ui_components.create_toolbar()
         
-        # Разделитель для основной области
-        splitter = QSplitter(Qt.Orientation.Horizontal)
+        # Панель с кнопкой подключения, переключателем темы и справкой (справа вверху)
+        top_panel = QWidget()
+        top_layout = QHBoxLayout(top_panel)
+        
+        # Кнопка подключения (слева)
+        self.connect_btn = QPushButton("Подключить")
+        self.connect_btn.clicked.connect(self.connect_to_powerbi)
+        top_layout.addWidget(self.connect_btn)
+        
+        top_layout.addStretch()
+        
+        # Кнопка переключения темы
+        self.theme_btn = QPushButton("Светлая/Тёмная")
+        self.theme_btn.clicked.connect(self.toggle_theme)
+        top_layout.addWidget(self.theme_btn)
+        
+        # Кнопка справки
+        self.help_btn = QPushButton("Справка")
+        self.help_btn.clicked.connect(self.help_methods.show_help)
+        top_layout.addWidget(self.help_btn)
+        
+        main_layout.addWidget(top_panel)
+        
+        # Основной вертикальный разделитель: сверху - контент, снизу - логи
+        main_splitter = QSplitter(Qt.Orientation.Vertical)
+        
+        # Горизонтальный разделитель для левой и центральной панели
+        content_splitter = QSplitter(Qt.Orientation.Horizontal)
         
         # Левая панель (навигация)
         left_panel = self.ui_components.create_left_panel()
-        splitter.addWidget(left_panel)
+        content_splitter.addWidget(left_panel)
         
         # Центральная панель (контент)
         center_panel = self.ui_components.create_center_panel()
-        splitter.addWidget(center_panel)
+        content_splitter.addWidget(center_panel)
         
-        # Правая панель удалена по требованию
-        # right_panel = self.ui_components.create_right_panel()
-        # splitter.addWidget(right_panel)
+        content_splitter.setSizes([300, 800])
+        main_splitter.addWidget(content_splitter)
         
-        splitter.setSizes([400, 1000])
-        main_layout.addWidget(splitter)
+        # Панель логов (внизу)
+        logs_panel = self.ui_components.create_logs_panel()
+        main_splitter.addWidget(logs_panel)
+        
+        # Добавляем обработчик логов в QTextEdit
+        if hasattr(self, 'logs_text'):
+            log_handler = QTextEditLogHandler(self.logs_text)
+            log_handler.setLevel(logging.INFO)
+            logging.getLogger().addHandler(log_handler)
+            # Убираем дублирование сообщений (если уже есть другие обработчики)
+            # Но оставляем FileHandler и StreamHandler
+            # Можно также установить уровень для корневого логгера, но он уже настроен
+        else:
+            logging.warning("logs_text не найден, обработчик логов не добавлен")
+        
+        main_splitter.setSizes([600, 200])
+        main_layout.addWidget(main_splitter)
         
         # Статус бар
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
         self.status_bar.showMessage("Готов к работе")
+        
+        # Прогресс-бар теперь находится во вкладке "Обзор" (см. ui_panels.create_overview_tab)
+        # self.progress_bar создаётся там
         
         # Таймер для обновления данных (не запускается автоматически)
         self.update_timer = QTimer()
@@ -207,3 +290,57 @@ class PowerBIMonitorUI(QMainWindow):
     def trigger_manual_refresh(self):
         """Запускает ручное обновление выбранного датасета."""
         return self.refresh_management_methods.trigger_manual_refresh()
+    
+    def enable_auto_refresh_selected(self, datasets):
+        """Включает автоматическое обновление для выбранных датасетов."""
+        return self.refresh_management_methods.enable_auto_refresh_selected(datasets)
+    
+    def disable_auto_refresh_selected(self, datasets):
+        """Отключает автоматическое обновление для выбранных датасетов."""
+        return self.refresh_management_methods.disable_auto_refresh_selected(datasets)
+    
+    def trigger_manual_refresh_selected(self, datasets):
+        """Запускает ручное обновление для выбранных датасетов."""
+        return self.refresh_management_methods.trigger_manual_refresh_selected(datasets)
+
+    def change_theme(self, theme_name):
+        """Изменяет тему интерфейса."""
+        # Сохраняем текущую тему
+        self.current_theme = theme_name
+        
+        palette = QPalette()
+        
+        if theme_name == "Тёмная":
+            # Тёмная палитра
+            palette.setColor(QPalette.ColorRole.Window, QColor(53, 53, 53))
+            palette.setColor(QPalette.ColorRole.WindowText, Qt.GlobalColor.white)
+            palette.setColor(QPalette.ColorRole.Base, QColor(25, 25, 25))
+            palette.setColor(QPalette.ColorRole.AlternateBase, QColor(53, 53, 53))
+            palette.setColor(QPalette.ColorRole.ToolTipBase, Qt.GlobalColor.black)
+            palette.setColor(QPalette.ColorRole.ToolTipText, Qt.GlobalColor.white)
+            palette.setColor(QPalette.ColorRole.Text, Qt.GlobalColor.white)
+            palette.setColor(QPalette.ColorRole.Button, QColor(53, 53, 53))
+            palette.setColor(QPalette.ColorRole.ButtonText, Qt.GlobalColor.white)
+            palette.setColor(QPalette.ColorRole.BrightText, Qt.GlobalColor.red)
+            palette.setColor(QPalette.ColorRole.Link, QColor(42, 130, 218))
+            palette.setColor(QPalette.ColorRole.Highlight, QColor(42, 130, 218))
+            palette.setColor(QPalette.ColorRole.HighlightedText, Qt.GlobalColor.black)
+            QApplication.instance().setPalette(palette)
+        elif theme_name == "Светлая":
+            # Светлая палитра (стандартная) - сброс к стандартной палитре
+            QApplication.instance().setPalette(QApplication.style().standardPalette())
+        else:
+            # Неизвестная тема, используем стандартную палитру
+            QApplication.instance().setPalette(QApplication.style().standardPalette())
+        
+        # Обновляем статус бар для отображения текущей темы
+        self.status_bar.showMessage(f"Тема изменена на: {theme_name}", 3000)
+    
+    def toggle_theme(self):
+        """Переключает тему между светлой и тёмной."""
+        if self.current_theme == "Светлая":
+            new_theme = "Тёмная"
+        else:
+            new_theme = "Светлая"
+        self.change_theme(new_theme)
+    

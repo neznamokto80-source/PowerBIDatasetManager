@@ -36,7 +36,7 @@ class ConnectionManager:
         
         self._lock = threading.RLock()
         self._connections: Dict[str, Any] = {}
-        self._active_workspace: str = "PROFISOFT"
+        self._active_workspace: str = "DefaultWorkspace"
         self._connection_status: Dict[str, bool] = {}
         self._last_activity: Dict[str, datetime] = {}
         self._initialized = True
@@ -46,15 +46,15 @@ class ConnectionManager:
     
     def _initialize_connections(self):
         """Инициализация фиктивных подключений для демонстрации."""
-        workspaces = ["PROFISOFT", "Домен1", "Домен2", "Домен3"]
+        workspaces = ["DefaultWorkspace", "Workspace1", "Workspace2", "Workspace3"]
         
         with self._lock:
             for workspace in workspaces:
                 self._connections[workspace] = {
                     "name": workspace,
-                    "type": "PowerBI" if workspace == "PROFISOFT" else "SQL",
+                    "type": "PowerBI" if workspace == "DefaultWorkspace" else "SQL",
                     "host": f"server-{workspace.lower()}.example.com",
-                    "port": 1433 if workspace != "PROFISOFT" else 443,
+                    "port": 1433 if workspace != "DefaultWorkspace" else 443,
                     "connected": True,
                     "last_check": datetime.now(),
                     "latency_ms": random.randint(10, 100)

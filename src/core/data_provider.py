@@ -110,10 +110,10 @@ class DataProvider:
         """
         # Количество датасетов зависит от рабочей области
         workspace_configs = {
-            "PROFISOFT": {"count": 12, "active_ratio": 0.9},
-            "Домен1": {"count": 8, "active_ratio": 0.7},
-            "Домен2": {"count": 6, "active_ratio": 0.5},
-            "Домен3": {"count": 4, "active_ratio": 0.3}
+            "DefaultWorkspace": {"count": 12, "active_ratio": 0.9},
+            "Workspace1": {"count": 8, "active_ratio": 0.7},
+            "Workspace2": {"count": 6, "active_ratio": 0.5},
+            "Workspace3": {"count": 4, "active_ratio": 0.3}
         }
         
         config = workspace_configs.get(workspace, {"count": 5, "active_ratio": 0.5})
@@ -156,7 +156,7 @@ class DataProvider:
             
             # Описание
             description = random.choice(self._descriptions)
-            if workspace != "PROFISOFT":
+            if workspace != "DefaultWorkspace":
                 description = f"[{workspace}] {description}"
             
             # Размер данных (в МБ)
@@ -414,7 +414,7 @@ if __name__ == "__main__":
     print("Тестирование DataProvider")
     print("=" * 60)
     
-    for workspace in ["PROFISOFT", "Домен1", "Домен2", "Домен3"]:
+    for workspace in ["DefaultWorkspace", "Workspace1", "Workspace2", "Workspace3"]:
         print(f"\nРабочая область: {workspace}")
         datasets = provider.get_datasets_for_workspace(workspace)
         print(f"Количество датасетов: {len(datasets)}")
@@ -433,7 +433,7 @@ if __name__ == "__main__":
     print("\n" + "=" * 60)
     print("Тестирование обновления датасета")
     
-    workspace = "PROFISOFT"
+    workspace = "DefaultWorkspace"
     datasets = provider.get_datasets_for_workspace(workspace)
     if datasets:
         dataset_id = datasets[0]["id"]

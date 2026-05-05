@@ -11,6 +11,7 @@ from typing import List, Dict, Any, Optional, Tuple
 
 from PyQt6.QtWidgets import QTableWidgetItem, QTreeWidgetItem
 from PyQt6.QtCore import QTimer
+from PyQt6.QtGui import QBrush, QColor
 
 from .progress_manager import ProgressManager
 
@@ -214,42 +215,83 @@ class DataLoadingMethods:
             self.main_window.log_message("Не выбрана рабочая область")
             return
         
-        # Используем контекстный менеджер для автоматического управления прогресс-баром
-        with self.progress.with_progress("Загрузка датасетов...", indeterminate=True):
-            try:
-                self.main_window.log_message(
-                    f"Загрузка датасетов из рабочей области {self.main_window.current_workspace}..."
-                )
-                self.main_window.status_bar.showMessage("Загрузка датасетов...")
-                
-                # Используем integration для получения обогащенных данных
-                if self.main_window.integration:
-                    datasets = self.main_window.integration.get_dataset_list(self.main_window.current_workspace)
+        # Показываем прогресс-бар в режиме с конкретным процентом (без текста, только процент)
+        self.progress.show(None, indeterminate=False)
+        try:
+            self.main_window.log_message(
+                f"Загрузка датасетов из рабочей области {self.main_window.current_workspace}..."
+            )
+            self.main_window.status_bar.showMessage("Загрузка датасетов...")
+            
+            # Определяем callback для обновления прогресса
+            def update_progress(current, total, message):
+                if total > 0:
+                    percent = int(current / total * 100)
                 else:
-                    datasets = self.main_window.client.get_datasets_in_workspace(self.main_window.current_workspace)
-                self.main_window.datasets = datasets
-                self.main_window.log_message(f"✓ Загружено датасетов: {len(datasets)}")
+                    percent = 0
+                # Обновляем прогресс-бар (без текста, только процент)
+                self.progress.update(percent, 100, None)
+                # Обновляем статус-бар
+                self.main_window.status_bar.showMessage(f"Загрузка: {percent}%")
+                # Принудительно обрабатываем события UI
+                from PyQt6.QtWidgets import QApplication
+                QApplication.processEvents()
+            
+            # Используем integration для получения обогащенных данных с отслеживанием прогресса
+            if self.main_window.integration:
+                datasets = self.main_window.integration.get_dataset_list(
+                    self.main_window.current_workspace,
+                    progress_callback=update_progress
+                )
+            else:
+                datasets = self.main_window.client.get_datasets_in_workspace(self.main_window.current_workspace)
+            
+            self.main_window.datasets = datasets
+            self.main_window.log_message(f"✓ Загружено датасетов: {len(datasets)}")
+            
+            # Обновление дерева датасетов
+            self.main_window.dataset_tree.clear()
+            for ds in datasets:
+                name = ds.get('name', 'Без имени')
+                status = ds.get('status', 'unknown')
+                refresh = ds.get('lastRefreshTime', 'никогда')
+                item = QTreeWidgetItem([name, status, refresh])
                 
-                # Обновление дерева датасетов
-                self.main_window.dataset_tree.clear()
-                for ds in datasets:
-                    name = ds.get('name', 'Без имени')
-                    status = ds.get('status', 'unknown')
-                    refresh = ds.get('lastRefreshTime', 'никогда')
-                    item = QTreeWidgetItem([name, status, refresh])
-                    self.main_window.dataset_tree.addTopLevelItem(item)
+                # Цветовое выделение для дерева
+                background_color = None
+                status_lower = status.lower()
+                if status_lower in ('failed', 'error'):
+                    background_color = QColor(255, 200, 200)  # светло-красный
+                else:
+                    refresh_schedule = ds.get('refresh_schedule', {})
+                    enabled = refresh_schedule.get('enabled') if isinstance(refresh_schedule, dict) else None
+                    if enabled is False:
+                        # Выбор цвета в зависимости от темы
+                        if self.main_window.current_theme == "Тёмная":
+                            background_color = QColor(60, 60, 60)  # тёмно-серый для тёмной темы
+                        else:
+                            background_color = QColor(240, 240, 240)  # светло-серый для светлой темы
                 
-                # Обновление таблицы датасетов
-                self.update_dataset_table(datasets)
+                if background_color:
+                    brush = QBrush(background_color)
+                    for col in range(item.columnCount()):
+                        item.setBackground(col, brush)
                 
-                # Обновление статистики
-                self.update_stats(datasets)
-                
-                self.main_window.status_bar.showMessage("Датасеты загружены", 3000)
-                
-            except Exception as e:
-                self.main_window.log_message(f"✗ Ошибка загрузки датасетов: {e}")
-                self.main_window.status_bar.showMessage("Ошибка загрузки", 5000)
+                self.main_window.dataset_tree.addTopLevelItem(item)
+            
+            # Обновление таблицы датасетов
+            self.update_dataset_table(datasets)
+            
+            # Обновление статистики
+            self.update_stats(datasets)
+            
+            self.main_window.status_bar.showMessage("Датасеты загружены", 3000)
+            
+        except Exception as e:
+            self.main_window.log_message(f"✗ Ошибка загрузки датасетов: {e}")
+            self.main_window.status_bar.showMessage("Ошибка загрузки", 5000)
+        finally:
+            self.progress.hide()   # скрываем прогресс-бар после завершения
     
     def update_dataset_table(self, datasets):
         """Обновляет таблицу датасетов."""
@@ -303,6 +345,31 @@ class DataLoadingMethods:
             self.main_window.dataset_table.setItem(row, 4, QTableWidgetItem(last_refresh))
             self.main_window.dataset_table.setItem(row, 5, QTableWidgetItem(next_refresh))
             self.main_window.dataset_table.setItem(row, 6, QTableWidgetItem(auto_refresh_status))
+            
+            # Цветовое выделение строк
+            background_color = None
+            status_lower = status.lower()
+            if status_lower in ('failed', 'error'):
+                background_color = QColor(255, 200, 200)  # светло-красный
+            elif enabled is False:
+                # Выбор цвета в зависимости от темы
+                if self.main_window.current_theme == "Тёмная":
+                    background_color = QColor(60, 60, 60)  # тёмно-серый для тёмной темы
+                else:
+                    background_color = QColor(250, 250, 250)  # очень светло-серый для светлой темы
+            elif next_refresh == "не запланировано":
+                # Выделение строк, где следующее обновление не запланировано
+                if self.main_window.current_theme == "Тёмная":
+                    background_color = QColor(80, 80, 40)  # тёмно-жёлтый для тёмной темы
+                else:
+                    background_color = QColor(255, 255, 230)  # очень светло-жёлтый для светлой темы
+            
+            if background_color:
+                brush = QBrush(background_color)
+                for col in range(self.main_window.dataset_table.columnCount()):
+                    item = self.main_window.dataset_table.item(row, col)
+                    if item:
+                        item.setBackground(brush)
     
     def update_stats(self, datasets):
         """Обновляет статистику."""
@@ -464,7 +531,17 @@ class DataLoadingMethods:
         if hasattr(self.main_window, 'detail_last_refresh_details'):
             self.main_window.detail_last_refresh_details.setText(last_refresh_details)
         
-        # Обновляем статус кнопок в зависимости от возможности обновления
+        # Обновляем статус кнопок в зависимости от состояния автообновления
+        # enabled может быть True (включено), False (выключено), None (не настроено)
+        if enabled is True:
+            # Автообновление включено - кнопка "Включить" неактивна, "Выключить" активна
+            self.main_window.enable_btn.setEnabled(False)
+            self.main_window.disable_btn.setEnabled(True)
+        else:
+            # Автообновление выключено или не настроено - кнопка "Включить" активна, "Выключить" неактивна
+            self.main_window.enable_btn.setEnabled(True)
+            self.main_window.disable_btn.setEnabled(False)
+        
+        # Кнопка ручного обновления активна, если датасет поддерживает обновление
         is_refreshable = dataset.get('isRefreshable', False)
-        self.main_window.enable_btn.setEnabled(not is_refreshable)
-        self.main_window.disable_btn.setEnabled(is_refreshable)
+        self.main_window.manual_refresh_btn.setEnabled(is_refreshable)
