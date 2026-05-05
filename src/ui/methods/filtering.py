@@ -34,17 +34,19 @@ class FilteringMethods:
         for ds in self.main_window.datasets:
             include = True
             
-            # Фильтр по включенным обновлениям
+            # Фильтр по включенным обновлениям (автообновление включено)
             if self.main_window.filter_enabled.isChecked():
-                if not ds.get('isRefreshable', False):
+                refresh_schedule = ds.get('refresh_schedule', {})
+                enabled = refresh_schedule.get('enabled') if isinstance(refresh_schedule, dict) else None
+                if enabled is not True:
                     include = False
             
-            # Фильтр по недавним обновлениям (последние 24 часа)
+            # Фильтр по выключенному автообновлению
             if self.main_window.filter_recent.isChecked():
-                last_refresh = ds.get('lastRefreshTime')
-                if not last_refresh or last_refresh == 'никогда':
+                refresh_schedule = ds.get('refresh_schedule', {})
+                enabled = refresh_schedule.get('enabled') if isinstance(refresh_schedule, dict) else None
+                if enabled is not False:
                     include = False
-                # Здесь можно добавить логику проверки времени
             
             # Фильтр по ошибкам
             if self.main_window.filter_errors.isChecked():
@@ -52,10 +54,10 @@ class FilteringMethods:
                 if 'failed' not in status and 'error' not in status:
                     include = False
             
-            # Фильтр "кроме неиспользуемых" (статус not used)
+            # Фильтр "Все кроме not_use" (проверка названия)
             if self.main_window.filter_except_not_use.isChecked():
-                status = ds.get('status', '').lower()
-                if 'not used' in status:
+                name = ds.get('name', '').lower()
+                if 'not_use' in name:
                     include = False
             
             # Фильтр по обновляющимся (in progress)

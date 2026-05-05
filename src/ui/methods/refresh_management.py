@@ -31,14 +31,16 @@ class RefreshManagementMethods:
             return
         
         try:
+            dataset_id = self.main_window.current_dataset.get('id')
+            dataset_name = self.main_window.current_dataset.get('name', dataset_id)
             self.main_window.log_message(
-                f"Включение автообновления для датасета {self.main_window.current_dataset}..."
+                f"Включение автообновления для датасета {dataset_name}..."
             )
             self.main_window.status_bar.showMessage("Включение автообновления...")
             
             result = self.main_window.refresh_manager.enable_auto_refresh(
                 self.main_window.current_workspace,
-                self.main_window.current_dataset
+                dataset_id
             )
             
             self.main_window.log_message("✓ Автообновление включено")
@@ -51,7 +53,7 @@ class RefreshManagementMethods:
             self.main_window.log_message(f"✗ Ошибка включения автообновления: {e}")
             self.main_window.status_bar.showMessage("Ошибка включения автообновления", 5000)
             QMessageBox.critical(
-                self.main_window, 
+                self.main_window,
                 "Ошибка",
                 f"Не удалось включить автообновление:\n{str(e)}"
             )
@@ -63,14 +65,16 @@ class RefreshManagementMethods:
             return
         
         try:
+            dataset_id = self.main_window.current_dataset.get('id')
+            dataset_name = self.main_window.current_dataset.get('name', dataset_id)
             self.main_window.log_message(
-                f"Отключение автообновления для датасета {self.main_window.current_dataset}..."
+                f"Отключение автообновления для датасета {dataset_name}..."
             )
             self.main_window.status_bar.showMessage("Отключение автообновления...")
             
             result = self.main_window.refresh_manager.disable_auto_refresh(
                 self.main_window.current_workspace,
-                self.main_window.current_dataset
+                dataset_id
             )
             
             self.main_window.log_message("✓ Автообновление отключено")
@@ -83,7 +87,7 @@ class RefreshManagementMethods:
             self.main_window.log_message(f"✗ Ошибка отключения автообновления: {e}")
             self.main_window.status_bar.showMessage("Ошибка отключения автообновления", 5000)
             QMessageBox.critical(
-                self.main_window, 
+                self.main_window,
                 "Ошибка",
                 f"Не удалось отключить автообновление:\n{str(e)}"
             )
@@ -95,15 +99,17 @@ class RefreshManagementMethods:
             return
         
         try:
+            dataset_id = self.main_window.current_dataset.get('id')
+            dataset_name = self.main_window.current_dataset.get('name', dataset_id)
             self.main_window.log_message(
-                f"Запуск ручного обновления для датасетов {self.main_window.current_dataset}..."
+                f"Запуск ручного обновления для датасета {dataset_name}..."
             )
             self.main_window.status_bar.showMessage("Запуск обновления...")
             
             # Используем data_provider для обновления
             result = self.main_window.data_provider.refresh_dataset(
                 self.main_window.current_workspace,
-                self.main_window.current_dataset
+                dataset_id
             )
             
             self.main_window.log_message("✓ Ручное обновление запущено")
@@ -116,7 +122,7 @@ class RefreshManagementMethods:
             self.main_window.log_message(f"✗ Ошибка запуска ручного обновления: {e}")
             self.main_window.status_bar.showMessage("Ошибка запуска обновления", 5000)
             QMessageBox.critical(
-                self.main_window, 
+                self.main_window,
                 "Ошибка",
                 f"Не удалось запустить обновление:\n{str(e)}"
             )

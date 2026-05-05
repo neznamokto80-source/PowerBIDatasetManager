@@ -7,7 +7,7 @@
 
 import logging
 from typing import Dict, Any, List, Optional
-from src.core.powerbi_client import PowerBIClient
+from src.core.powerbi_client import PowerBIClient, parse_utc_to_local
 from src.core.refresh_manager import RefreshManager
 
 logger = logging.getLogger(__name__)
@@ -108,6 +108,9 @@ class UIIntegration:
         try:
             if workspace_id:
                 datasets = self.client.get_datasets_in_workspace(workspace_id)
+                # Добавляем workspace_id в каждый датасет
+                for ds in datasets:
+                    ds['workspace_id'] = workspace_id
             else:
                 # Получаем датасеты из всех рабочих областей
                 workspaces = self.client.get_workspaces()
@@ -125,22 +128,63 @@ class UIIntegration:
                             logger.warning(f"Ошибка получения датасетов из workspace {ws_id}: {e}")
                             continue
             
-            # Обогащаем данные информацией о последнем обновлении
+            # Обогащаем данные информацией о последнем обновлении и расписании
             enriched_datasets = []
             for dataset in datasets:
                 enriched = dataset.copy()
                 dataset_id = dataset.get('id')
-                workspace_id = dataset.get('workspace_id') or workspace_id
+                current_workspace_id = dataset.get('workspace_id') or workspace_id
                 
-                if dataset_id and workspace_id:
+                # Добавляем workspace_id и workspace_name, если отсутствуют
+                if current_workspace_id and 'workspace_id' not in enriched:
+                    enriched['workspace_id'] = current_workspace_id
+                    # Получаем имя рабочей области из списка workspace (если доступно)
+                    # Пока оставим пустым, позже можно заполнить
+                
+                if dataset_id and current_workspace_id:
                     try:
-                        last_refresh = self.client.get_last_refresh(workspace_id, dataset_id)
+                        last_refresh = self.client.get_last_refresh(current_workspace_id, dataset_id)
                         if last_refresh:
                             enriched['last_refresh'] = last_refresh
                             enriched['last_refresh_status'] = last_refresh.get('status', 'Unknown')
-                            enriched['last_refresh_time'] = last_refresh.get('startTime', '')
+                            start_time = last_refresh.get('startTime', '')
+                            enriched['last_refresh_time'] = start_time
+                            # Добавляем совместимые поля для UI с форматированием
+                            if start_time:
+                                try:
+                                    formatted_time = parse_utc_to_local(start_time)
+                                except Exception:
+                                    formatted_time = start_time
+                                enriched['lastRefreshTime'] = formatted_time
+                            else:
+                                enriched['lastRefreshTime'] = 'никогда'
                     except Exception as e:
                         logger.debug(f"Не удалось получить последнее обновление для датасета {dataset_id}: {e}")
+                    
+                    try:
+                        schedule = self.client.get_refresh_schedule(current_workspace_id, dataset_id)
+                        if schedule:
+                            enriched['refresh_schedule'] = schedule
+                            # Извлекаем следующее запланированное время
+                            next_refresh = schedule.get('nextScheduleTime')
+                            if next_refresh:
+                                try:
+                                    formatted_next = parse_utc_to_local(next_refresh)
+                                except Exception:
+                                    formatted_next = next_refresh
+                                enriched['nextRefreshTime'] = formatted_next
+                    except Exception as e:
+                        logger.debug(f"Не удалось получить расписание для датасета {dataset_id}: {e}")
+                
+                # Устанавливаем значения по умолчанию, если поля отсутствуют
+                enriched.setdefault('lastRefreshTime', 'никогда')
+                enriched.setdefault('nextRefreshTime', 'не запланировано')
+                # Используем статус последнего обновления, если есть
+                if 'last_refresh_status' in enriched and enriched['last_refresh_status']:
+                    enriched['status'] = enriched['last_refresh_status']
+                else:
+                    enriched.setdefault('status', 'unknown')
+                enriched.setdefault('isRefreshable', False)
                 
                 enriched_datasets.append(enriched)
             

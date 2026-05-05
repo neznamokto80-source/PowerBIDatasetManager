@@ -76,7 +76,7 @@ class UIPanels:
         self.main.filter_enabled.stateChanged.connect(self.main.apply_filters)
         filter_layout.addWidget(self.main.filter_enabled)
         
-        self.main.filter_recent = QCheckBox("Обновленные за последние 24 часа")
+        self.main.filter_recent = QCheckBox("Только с выключенным обновлением")
         self.main.filter_recent.stateChanged.connect(self.main.apply_filters)
         filter_layout.addWidget(self.main.filter_recent)
         
@@ -171,10 +171,10 @@ class UIPanels:
         
         # Таблица датасетов
         self.main.dataset_table = QTableWidget()
-        self.main.dataset_table.setColumnCount(5)
+        self.main.dataset_table.setColumnCount(7)
         self.main.dataset_table.setHorizontalHeaderLabels([
-            "Название", "Рабочая область", "Status",
-            "Последнее обновление", "Следующее"
+            "Название", "Рабочая область", "ID датасета", "Status",
+            "Последнее обновление", "Следующее", "Автообновление"
         ])
         # Настройка ширины колонок: колонка статуса уже
         self.main.dataset_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
@@ -182,6 +182,8 @@ class UIPanels:
         self.main.dataset_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
         self.main.dataset_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
         self.main.dataset_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)
+        self.main.dataset_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.Stretch)
+        self.main.dataset_table.horizontalHeader().setSectionResizeMode(6, QHeaderView.ResizeMode.Stretch)
         self.main.dataset_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.main.dataset_table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.main.dataset_table.itemDoubleClicked.connect(self.main.on_dataset_double_clicked)
@@ -227,6 +229,14 @@ class UIPanels:
         
         self.main.detail_schedule = QLabel("-")
         details_layout.addRow("Расписание:", self.main.detail_schedule)
+        
+        # Добавляем поле для статуса автоматического обновления
+        self.main.detail_auto_refresh = QLabel("-")
+        details_layout.addRow("Автообновление:", self.main.detail_auto_refresh)
+        
+        # Добавляем поле для деталей последнего обновления
+        self.main.detail_last_refresh_details = QLabel("-")
+        details_layout.addRow("Детали последнего обновления:", self.main.detail_last_refresh_details)
         
         self.main.details_group.setLayout(details_layout)
         layout.addWidget(self.main.details_group)

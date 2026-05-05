@@ -10,6 +10,12 @@ import time
 from typing import Dict, Any, Optional, List, Tuple
 from datetime import datetime
 from .powerbi_client import PowerBIClient, parse_utc_to_local, APIRequestError
+from .refresh_operations import (
+    create_default_schedule,
+    enable_auto_refresh as enable_auto_refresh_op,
+    disable_auto_refresh as disable_auto_refresh_op,
+    trigger_manual_refresh as trigger_manual_refresh_op
+)
 
 logger = logging.getLogger(__name__)
 
@@ -49,56 +55,35 @@ class RefreshManager:
     ) -> Dict[str, Any]:
         """
         Включает автоматическое обновление для датасета.
-        
+
         Args:
             workspace_id: ID рабочей области
             dataset_id: ID датасета
             schedule: Настройки расписания (если None, используется расписание по умолчанию)
-        
+
         Returns:
             Результат операции
-        
+
         Raises:
             APIRequestError: При ошибке запроса к API
         """
-        if schedule is None:
-            schedule = create_default_schedule()
-        
-        logger.info(f"Включение автообновления для датасета {dataset_id} в workspace {workspace_id}")
-        
-        url = f"{self.client.POWER_BI_API_BASE}/groups/{workspace_id}/datasets/{dataset_id}/refreshSchedule"
-        result = self.client.make_request(url, method="PATCH", body=schedule)
-        
-        logger.info(f"Автообновление успешно включено для датасета {dataset_id}")
-        return result
+        return enable_auto_refresh_op(self.client, workspace_id, dataset_id, schedule)
     
     def disable_auto_refresh(self, workspace_id: str, dataset_id: str) -> Dict[str, Any]:
         """
         Отключает автоматическое обновление для датасета.
-        
+
         Args:
             workspace_id: ID рабочей области
             dataset_id: ID датасета
-        
+
         Returns:
             Результат операции
-        
+
         Raises:
             APIRequestError: При ошибке запроса к API
         """
-        schedule = {
-            "value": {
-                "enabled": False
-            }
-        }
-        
-        logger.info(f"Отключение автообновления для датасета {dataset_id} в workspace {workspace_id}")
-        
-        url = f"{self.client.POWER_BI_API_BASE}/groups/{workspace_id}/datasets/{dataset_id}/refreshSchedule"
-        result = self.client.make_request(url, method="PATCH", body=schedule)
-        
-        logger.info(f"Автообновление успешно отключено для датасета {dataset_id}")
-        return result
+        return disable_auto_refresh_op(self.client, workspace_id, dataset_id)
     
     def trigger_manual_refresh(
         self,
@@ -123,29 +108,13 @@ class RefreshManager:
             ValueError: При недопустимых значениях параметров
             APIRequestError: При ошибке запроса к API
         """
-        if notify_option not in self.NOTIFY_OPTIONS:
-            raise ValueError(f"Недопустимая опция уведомления: {notify_option}")
-        
-        if refresh_type not in self.REFRESH_TYPES:
-            raise ValueError(f"Недопустимый тип обновления: {refresh_type}")
-        
-        body = {
-            "notifyOption": notify_option
-        }
-        
-        if refresh_type != "Full":
-            body["type"] = refresh_type
-        
-        logger.info(
-            f"Запуск ручного обновления для датасета {dataset_id} "
-            f"(тип: {refresh_type}, уведомление: {notify_option})"
+        return trigger_manual_refresh_op(
+            self.client,
+            workspace_id,
+            dataset_id,
+            notify_option,
+            refresh_type
         )
-        
-        url = f"{self.client.POWER_BI_API_BASE}/groups/{workspace_id}/datasets/{dataset_id}/refreshes"
-        result = self.client.make_request(url, method="POST", body=body)
-        
-        logger.info(f"Ручное обновление запущено для датасета {dataset_id}")
-        return result
     
     def get_refresh_status(
         self,
@@ -398,41 +367,6 @@ class RefreshManager:
             "successful_count": successful,
             "failed_count": total - successful
         }
-
-
-def create_default_schedule(
-    days: List[str] = None,
-    times: List[str] = None,
-    timezone: str = "UTC",
-    notify_option: str = "NoNotification"
-) -> Dict[str, Any]:
-    """
-    Создает настройки расписания по умолчанию.
-    
-    Args:
-        days: Дни недели (по умолчанию все дни)
-        times: Время обновления (по умолчанию ["03:00"])
-        timezone: Часовой пояс (по умолчанию "UTC")
-        notify_option: Опция уведомления
-    
-    Returns:
-        Настройки расписания
-    """
-    if days is None:
-        days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-    
-    if times is None:
-        times = ["03:00"]
-    
-    return {
-        "value": {
-            "enabled": True,
-            "days": days,
-            "times": times,
-            "localTimeZoneId": timezone,
-            "notifyOption": notify_option
-        }
-    }
 
 
 if __name__ == "__main__":

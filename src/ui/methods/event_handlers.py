@@ -58,7 +58,7 @@ class EventHandlers:
                 break
         
         if dataset:
-            self.main_window.current_dataset = dataset.get('id')
+            self.main_window.current_dataset = dataset  # сохраняем объект датасета
             self.main_window.update_dataset_details(dataset)
             self.main_window.log_message(f"Выбран датасет: {dataset_name}")
             

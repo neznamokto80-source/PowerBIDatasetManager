@@ -6,7 +6,11 @@
 """
 
 import logging
+import os
+import json
+import re
 import requests
+from datetime import datetime
 from azure.identity import InteractiveBrowserCredential, AzureCliCredential
 import dateutil.parser
 from typing import Optional, Dict, Any, List, Union
@@ -24,16 +28,109 @@ class PowerBIClient:
     # Коды успешных HTTP статусов
     SUCCESS_STATUS_CODES = {200, 201, 202, 204}
     
-    def __init__(self, use_session: bool = True):
+    def __init__(self, use_session: bool = True, debug_data_path: Optional[str] = None):
         """
         Инициализация клиента Power BI.
-        
+
         Args:
             use_session: Использовать сессию requests для повторного использования соединений
+            debug_data_path: Путь для сохранения сырых данных (если None, сохранение отключено)
         """
         self.token: Optional[str] = None
         self.session = requests.Session() if use_session else requests
         self._auth_method: Optional[str] = None
+        self.debug_data_path = debug_data_path
+        if self.debug_data_path:
+            os.makedirs(self.debug_data_path, exist_ok=True)
+
+    def _save_raw_data(self, url: str, method: str, data: Union[Dict, List], status_code: int):
+        """
+        Сохраняет сырые данные ответа в файл для отладки.
+        Организует файлы по рабочим областям и датасетам для удобства тестирования.
+
+        Args:
+            url: URL запроса
+            method: HTTP метод
+            data: Данные ответа (словарь или список)
+            status_code: Код статуса HTTP
+        """
+        if not self.debug_data_path:
+            return
+
+        # Извлекаем идентификаторы из URL
+        workspace_id = None
+        dataset_id = None
+        
+        # Паттерны для извлечения workspace_id и dataset_id из URL Power BI API
+        # Пример: /groups/{workspace_id}/datasets/{dataset_id}/...
+        import re
+        pattern_workspace = r'/groups/([a-zA-Z0-9\-]+)'
+        pattern_dataset = r'/datasets/([a-zA-Z0-9\-]+)'
+        
+        match_ws = re.search(pattern_workspace, url)
+        if match_ws:
+            workspace_id = match_ws.group(1)
+        
+        match_ds = re.search(pattern_dataset, url)
+        if match_ds:
+            dataset_id = match_ds.group(1)
+        
+        # Определяем тип endpoint (последний сегмент пути)
+        endpoint = url.replace(self.POWER_BI_API_BASE, "").strip("/")
+        if not endpoint:
+            endpoint = "root"
+        # Безопасное имя для файла
+        safe_endpoint = "".join(c if c.isalnum() or c in ('-', '_') else '_' for c in endpoint)
+        
+        # Извлекаем название датасета из данных (если доступно)
+        dataset_name = None
+        if isinstance(data, dict) and 'name' in data:
+            dataset_name = data.get('name')
+        elif isinstance(data, list) and len(data) > 0 and isinstance(data[0], dict) and 'name' in data[0]:
+            # Если это список датасетов, используем имя первого (или общее)
+            dataset_name = "datasets_list"
+        
+        # Безопасное имя датасета (замена недопустимых символов)
+        if dataset_name:
+            # Ограничим длину и заменим пробелы и спецсимволы
+            safe_name = re.sub(r'[^\w\-]', '_', dataset_name)[:50]
+        else:
+            safe_name = dataset_id if dataset_id else "unknown"
+        
+        # Дата и время в формате ГГГГММДД_ЧЧММСС
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        # Микросекунды для уникальности
+        micro = datetime.now().strftime("%f")
+        
+        # Собираем компоненты имени файла
+        components = [timestamp]
+        if safe_name:
+            components.append(safe_name)
+        components.append(method)
+        components.append(safe_endpoint)
+        
+        filename = "_".join(components) + f"_{micro}.json"
+        filepath = os.path.join(self.debug_data_path, filename)
+        
+        # Убедимся, что директория существует
+        os.makedirs(self.debug_data_path, exist_ok=True)
+        
+        payload = {
+            "url": url,
+            "method": method,
+            "status_code": status_code,
+            "timestamp": datetime.now().isoformat(),
+            "workspace_id": workspace_id,
+            "dataset_id": dataset_id,
+            "data": data
+        }
+
+        try:
+            with open(filepath, 'w', encoding='utf-8') as f:
+                json.dump(payload, f, ensure_ascii=False, indent=2)
+            logger.debug(f"Сырые данные сохранены в {filepath}")
+        except Exception as e:
+            logger.warning(f"Не удалось сохранить сырые данные: {e}")
     
     def authenticate(self) -> str:
         """
@@ -111,6 +208,8 @@ class PowerBIClient:
         }
         
         logger.debug(f"Выполнение запроса {method} {url}")
+        if body is not None:
+            logger.debug(f"Тело запроса: {body}")
         
         try:
             response = self.session.request(
@@ -122,21 +221,32 @@ class PowerBIClient:
                 timeout=timeout
             )
         except requests.exceptions.RequestException as e:
-            raise APIRequestError(f"Ошибка сети при запросе к {url}: {e}") from e
+            raise APIRequestError(f"Ошибка сети при запросе к {url}: {e}", status_code=None) from e
         
         if response.status_code not in self.SUCCESS_STATUS_CODES:
             raise APIRequestError(
-                f"Ошибка {response.status_code} при запросе к {url}: {response.text}"
+                f"Ошибка {response.status_code} при запросе к {url}: {response.text}",
+                status_code=response.status_code
             )
         
         # Для DELETE без содержимого
         if response.status_code == 204:
             return {}
         
+        # Логируем тело ответа для отладки
+        logger.debug(f"Ответ от {url}: статус {response.status_code}, тело: {response.text[:500]}")
+        
+        # Если тело ответа пустое (например, успешный PATCH возвращает пустой ответ)
+        if not response.text.strip():
+            return {}
+        
         try:
-            return response.json()
+            data = response.json()
+            if self.debug_data_path:
+                self._save_raw_data(url, method, data, response.status_code)
+            return data
         except ValueError as e:
-            raise APIRequestError(f"Не удалось разобрать JSON ответ от {url}: {e}") from e
+            raise APIRequestError(f"Не удалось разобрать JSON ответ от {url}: {e}", status_code=response.status_code) from e
     
     def get_workspace_by_name(self, workspace_name: str) -> Dict[str, Any]:
         """
@@ -270,7 +380,10 @@ class AuthenticationError(Exception):
 
 class APIRequestError(Exception):
     """Исключение для ошибок запросов к API."""
-    pass
+    
+    def __init__(self, message: str, status_code: Optional[int] = None):
+        super().__init__(message)
+        self.status_code = status_code
 
 
 class ResourceNotFoundError(Exception):
@@ -278,14 +391,14 @@ class ResourceNotFoundError(Exception):
     pass
 
 
-def parse_utc_to_local(utc_str: str, fmt: str = "%Y-%m-%d %H:%M:%S") -> str:
+def parse_utc_to_local(utc_str: str, fmt: str = "%d-%m-%Y %H:%M:%S") -> str:
     """
     Преобразует строку UTC в локальное время.
-    
+
     Args:
         utc_str: Строка времени в формате UTC
         fmt: Формат вывода времени
-    
+
     Returns:
         Строка времени в локальном формате или "—" при ошибке
     """

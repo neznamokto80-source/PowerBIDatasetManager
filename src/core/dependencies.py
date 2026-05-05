@@ -21,6 +21,8 @@ class DependencyManager:
     # Список необходимых пакетов: (имя пакета для pip, импортируемое имя модуля)
     REQUIRED_PACKAGES = [
         ("azure-identity", "azure.identity"),
+        ("azure-core", "azure.core"),
+        ("msal", "msal"),
         ("requests", "requests"),
         ("python-dateutil", "dateutil"),
         ("PyQt6", "PyQt6"),
