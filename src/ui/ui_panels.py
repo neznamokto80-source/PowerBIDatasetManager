@@ -115,7 +115,7 @@ class UIPanels:
         self.main.stop_monitor_btn.setEnabled(False)
         monitor_layout.addWidget(self.main.stop_monitor_btn)
 
-        monitor_group = create_group_box("Мониторинг (переодичность опроса 30 сек)", monitor_layout)
+        monitor_group = create_group_box("Мониторинг (переодичность опроса 60 сек)", monitor_layout)
         layout.addWidget(monitor_group)
 
         layout.addStretch()

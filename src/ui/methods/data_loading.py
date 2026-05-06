@@ -13,6 +13,7 @@ from PyQt6.QtGui import QBrush
 from .progress_manager import ProgressManager
 from .base_methods import BaseMethods
 from src.ui.theme_colors import ThemeColors
+from src.core.data_provider import get_data_provider
 
 logger = logging.getLogger(__name__)
 
@@ -206,6 +207,57 @@ class DataLoadingMethods(BaseMethods):
             self.main_window.status_bar.showMessage("Ошибка загрузки", 5000)
         finally:
             self.progress.hide()   # скрываем прогресс-бар после завершения
+    
+    def load_test_data(self):
+        """Загружает тестовые данные (демо-режим) для скриншотов."""
+        try:
+            self.main_window.log_message("Загрузка тестовых данных (демо-режим)...")
+            self.main_window.status_bar.showMessage("Загрузка тестовых данных...")
+            
+            # Создаем провайдер данных в демо-режиме
+            provider = get_data_provider(demo_mode=True)
+            
+            # Используем фиктивную рабочую область (или текущую, если есть)
+            workspace = self.main_window.current_workspace or "DefaultWorkspace"
+            
+            # Получаем демо-датасеты
+            datasets = provider.get_datasets_for_workspace(workspace, force_refresh=False)
+            
+            # Обогащаем каждый датасет информацией о следующем обновлении
+            for ds in datasets:
+                self._enrich_dataset_refresh_info(ds)
+            
+            self.main_window.datasets = datasets
+            self.main_window.log_message(f"✓ Загружено тестовых датасетов: {len(datasets)}")
+            
+            # Обновление дерева датасетов
+            self.main_window.dataset_tree.clear()
+            for ds in datasets:
+                name = ds.get('name', 'Без имени')
+                status = ds.get('status', 'unknown')
+                refresh = ds.get('lastRefreshTime', 'никогда')
+                item = QTreeWidgetItem([name, status, refresh])
+                
+                # Цветовое выделение для дерева
+                background_color = ThemeColors.get_dataset_background_color(ds, self.main_window.current_theme)
+                if background_color:
+                    brush = QBrush(background_color)
+                    for col in range(item.columnCount()):
+                        item.setBackground(col, brush)
+                
+                self.main_window.dataset_tree.addTopLevelItem(item)
+            
+            # Обновление таблицы датасетов
+            self.update_dataset_table(datasets)
+            
+            # Обновление статистики
+            self.update_stats(datasets)
+            
+            self.main_window.status_bar.showMessage("Тестовые данные загружены", 3000)
+            
+        except Exception as e:
+            self.main_window.log_message(f"✗ Ошибка загрузки тестовых данных: {e}")
+            self.main_window.status_bar.showMessage("Ошибка загрузки тестовых данных", 5000)
     
     def update_dataset_table(self, datasets):
         """Обновляет таблицу датасетов."""

@@ -130,6 +130,11 @@ class PowerBIMonitorUI(QMainWindow):
         self.connect_btn.clicked.connect(self.connect_to_powerbi)
         top_layout.addWidget(self.connect_btn)
         
+        # Кнопка тестовых данных
+        self.test_data_btn = QPushButton("Тестовые данные")
+        self.test_data_btn.clicked.connect(self.data_loading_methods.load_test_data)
+        top_layout.addWidget(self.test_data_btn)
+        
         top_layout.addStretch()
         
         # Кнопка переключения темы
