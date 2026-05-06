@@ -36,13 +36,24 @@ class DataProvider:
     Поддерживает многопоточное получение данных и кэширование.
     """
     
-    def __init__(self):
-        """Инициализация провайдера данных."""
+    def __init__(self, seed=None, demo_mode=False):
+        """
+        Инициализация провайдера данных.
+        
+        Args:
+            seed: Seed для генератора случайных чисел (для детерминированных тестовых данных)
+            demo_mode: Если True, возвращает фиксированные демо-данные для скриншотов
+        """
         self._lock = threading.RLock()
         self._cache: Dict[str, List[Dict[str, Any]]] = {}
         self._cache_timestamp: Dict[str, datetime] = {}
         self._cache_ttl = 30  # Время жизни кэша в секундах
         self._connection_manager = get_connection_manager()
+        self._demo_mode = demo_mode
+        
+        # Установка seed для детерминированной генерации
+        if seed is not None:
+            random.seed(seed)
         
         # Фиктивные имена датасетов для генерации
         self._dataset_names = [
@@ -101,13 +112,17 @@ class DataProvider:
     def _generate_datasets(self, workspace: str) -> List[Dict[str, Any]]:
         """
         Сгенерировать фиктивные данные о датасетах для рабочей области.
-        
+
         Args:
             workspace: Название рабочей области
-            
+
         Returns:
             Список словарей с информацией о датасетах
         """
+        # Если включен демо-режим, возвращаем фиксированные данные
+        if self._demo_mode:
+            return self._generate_demo_datasets(workspace)
+        
         # Количество датасетов зависит от рабочей области
         workspace_configs = {
             "DefaultWorkspace": {"count": 12, "active_ratio": 0.9},
@@ -145,12 +160,31 @@ class DataProvider:
             # Автообновление
             auto_refresh_prob = 0.7 if is_active else 0.3
             auto_refresh_enabled = random.random() < auto_refresh_prob
-            auto_refresh_status = (AutoRefreshStatus.ENABLED if auto_refresh_enabled 
+            auto_refresh_status = (AutoRefreshStatus.ENABLED if auto_refresh_enabled
                                   else AutoRefreshStatus.DISABLED)
+            
+            # Расписание автообновления
+            refresh_schedule = {}
+            if auto_refresh_enabled:
+                refresh_schedule['enabled'] = True
+                # С вероятностью 50% добавляем расписание
+                if random.random() < 0.5:
+                    refresh_schedule['times'] = ["09:00", "18:00"]
+                    refresh_schedule['days'] = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+                else:
+                    refresh_schedule['times'] = []
+                    refresh_schedule['days'] = []
+            else:
+                refresh_schedule['enabled'] = False
+                refresh_schedule['times'] = []
+                refresh_schedule['days'] = []
+            
+            # Поле isRefreshable (для обратной совместимости)
+            is_refreshable = auto_refresh_enabled
             
             # Даты обновления
             days_ago = random.randint(0, 30)
-            last_update = datetime.now() - timedelta(days=days_ago, 
+            last_update = datetime.now() - timedelta(days=days_ago,
                                                     hours=random.randint(0, 23),
                                                     minutes=random.randint(0, 59))
             
@@ -172,6 +206,10 @@ class DataProvider:
                 "auto_refresh": auto_refresh_status.value,
                 "auto_refresh_raw": auto_refresh_status,
                 "auto_refresh_enabled": auto_refresh_enabled,
+                "refresh_schedule": refresh_schedule,
+                "lastRefreshTime": last_update.strftime("%Y-%m-%d %H:%M"),
+                "isRefreshable": is_refreshable,
+                "nextRefreshTime": "",
                 "description": description,
                 "size_mb": size_mb,
                 "workspace": workspace,
@@ -187,6 +225,186 @@ class DataProvider:
         datasets.sort(key=lambda x: x["name"])
         
         return datasets
+    
+    def _generate_demo_datasets(self, workspace: str) -> List[Dict[str, Any]]:
+        """
+        Генерирует фиксированные демо-данные для скриншотов.
+        
+        Args:
+            workspace: Название рабочей области
+            
+        Returns:
+            Список словарей с информацией о датасетах
+        """
+        # Если рабочая область не DefaultWorkspace, возвращаем пустой список
+        if workspace != "DefaultWorkspace":
+            return []
+        
+        from datetime import datetime, timedelta
+        
+        # Фиксированные датасеты
+        demo_datasets = [
+            {
+                "id": "dataset-default-001",
+                "name": "Sales Dashboard",
+                "status": "Активен",
+                "status_raw": DatasetStatus.ACTIVE,
+                "last_update": datetime.now() - timedelta(hours=2),
+                "last_update_str": (datetime.now() - timedelta(hours=2)).strftime("%Y-%m-%d %H:%M"),
+                "lastRefreshTime": (datetime.now() - timedelta(hours=2)).strftime("%Y-%m-%d %H:%M"),
+                "auto_refresh": "Вкл",
+                "auto_refresh_raw": AutoRefreshStatus.ENABLED,
+                "auto_refresh_enabled": True,
+                "refresh_schedule": {
+                    "enabled": True,
+                    "times": ["09:00", "18:00"],
+                    "days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+                },
+                "isRefreshable": True,
+                "nextRefreshTime": "",
+                "description": "Основной дашборд продаж с детализацией по регионам",
+                "size_mb": 250,
+                "workspace": workspace,
+                "row_count": 50000,
+                "refresh_interval_hours": 12,
+                "has_errors": False,
+                "selected": False
+            },
+            {
+                "id": "dataset-default-002",
+                "name": "Financial Reports",
+                "status": "Активен",
+                "status_raw": DatasetStatus.ACTIVE,
+                "last_update": datetime.now() - timedelta(days=1),
+                "last_update_str": (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d %H:%M"),
+                "lastRefreshTime": (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d %H:%M"),
+                "auto_refresh": "Вкл",
+                "auto_refresh_raw": AutoRefreshStatus.ENABLED,
+                "auto_refresh_enabled": True,
+                "refresh_schedule": {
+                    "enabled": True,
+                    "times": [],
+                    "days": []
+                },
+                "isRefreshable": True,
+                "nextRefreshTime": "",
+                "description": "Финансовая отчетность и анализ прибыльности",
+                "size_mb": 180,
+                "workspace": workspace,
+                "row_count": 30000,
+                "refresh_interval_hours": 24,
+                "has_errors": False,
+                "selected": False
+            },
+            {
+                "id": "dataset-default-003",
+                "name": "Marketing Analytics",
+                "status": "Активен",
+                "status_raw": DatasetStatus.ACTIVE,
+                "last_update": datetime.now() - timedelta(days=3),
+                "last_update_str": (datetime.now() - timedelta(days=3)).strftime("%Y-%m-%d %H:%M"),
+                "lastRefreshTime": (datetime.now() - timedelta(days=3)).strftime("%Y-%m-%d %H:%M"),
+                "auto_refresh": "Выкл",
+                "auto_refresh_raw": AutoRefreshStatus.DISABLED,
+                "auto_refresh_enabled": False,
+                "refresh_schedule": {
+                    "enabled": False,
+                    "times": [],
+                    "days": []
+                },
+                "isRefreshable": False,
+                "nextRefreshTime": "",
+                "description": "Аналитика маркетинговых кампаний и ROI",
+                "size_mb": 320,
+                "workspace": workspace,
+                "row_count": 75000,
+                "refresh_interval_hours": 6,
+                "has_errors": False,
+                "selected": False
+            },
+            {
+                "id": "dataset-default-004",
+                "name": "Customer Insights",
+                "status": "Неактивен",
+                "status_raw": DatasetStatus.INACTIVE,
+                "last_update": datetime.now() - timedelta(days=10),
+                "last_update_str": (datetime.now() - timedelta(days=10)).strftime("%Y-%m-%d %H:%M"),
+                "lastRefreshTime": (datetime.now() - timedelta(days=10)).strftime("%Y-%m-%d %H:%M"),
+                "auto_refresh": "Выкл",
+                "auto_refresh_raw": AutoRefreshStatus.DISABLED,
+                "auto_refresh_enabled": False,
+                "refresh_schedule": {
+                    "enabled": False,
+                    "times": [],
+                    "days": []
+                },
+                "isRefreshable": False,
+                "nextRefreshTime": "",
+                "description": "Инсайты по клиентскому поведению и удержанию",
+                "size_mb": 150,
+                "workspace": workspace,
+                "row_count": 20000,
+                "refresh_interval_hours": 1,
+                "has_errors": False,
+                "selected": False
+            },
+            {
+                "id": "dataset-default-005",
+                "name": "Inventory Management",
+                "status": "Ошибка",
+                "status_raw": DatasetStatus.ERROR,
+                "last_update": datetime.now() - timedelta(days=5),
+                "last_update_str": (datetime.now() - timedelta(days=5)).strftime("%Y-%m-%d %H:%M"),
+                "lastRefreshTime": (datetime.now() - timedelta(days=5)).strftime("%Y-%m-%d %H:%M"),
+                "auto_refresh": "Выкл",
+                "auto_refresh_raw": AutoRefreshStatus.DISABLED,
+                "auto_refresh_enabled": False,
+                "refresh_schedule": {
+                    "enabled": False,
+                    "times": [],
+                    "days": []
+                },
+                "isRefreshable": False,
+                "nextRefreshTime": "",
+                "description": "Управление запасами и оптимизация складских остатков",
+                "size_mb": 450,
+                "workspace": workspace,
+                "row_count": 100000,
+                "refresh_interval_hours": 2,
+                "has_errors": True,
+                "selected": False
+            },
+            {
+                "id": "dataset-default-006",
+                "name": "HR Analytics",
+                "status": "Активен",
+                "status_raw": DatasetStatus.ACTIVE,
+                "last_update": datetime.now() - timedelta(hours=12),
+                "last_update_str": (datetime.now() - timedelta(hours=12)).strftime("%Y-%m-%d %H:%M"),
+                "lastRefreshTime": (datetime.now() - timedelta(hours=12)).strftime("%Y-%m-%d %H:%M"),
+                "auto_refresh": "Вкл",
+                "auto_refresh_raw": AutoRefreshStatus.ENABLED,
+                "auto_refresh_enabled": True,
+                "refresh_schedule": {
+                    "enabled": True,
+                    "times": ["08:00", "20:00"],
+                    "days": ["Monday", "Wednesday", "Friday"]
+                },
+                "isRefreshable": True,
+                "nextRefreshTime": "",
+                "description": "Аналитика персонала и эффективности сотрудников",
+                "size_mb": 120,
+                "workspace": workspace,
+                "row_count": 25000,
+                "refresh_interval_hours": 12,
+                "has_errors": False,
+                "selected": False
+            }
+        ]
+        
+        # Сортируем по имени
+        demo_datasets.sort(key=lambda x: x["name"])
+        return demo_datasets
     
     def refresh_dataset(self, workspace: str, dataset_id: str) -> Dict[str, Any]:
         """
@@ -402,16 +620,25 @@ class DataProvider:
 
 
 # Функция для удобного доступа к провайдеру
-def get_data_provider() -> DataProvider:
-    """Получить экземпляр провайдера данных."""
-    return DataProvider()
+def get_data_provider(seed=None, demo_mode=False) -> DataProvider:
+    """
+    Получить экземпляр провайдера данных.
+    
+    Args:
+        seed: Seed для генератора случайных чисел
+        demo_mode: Если True, возвращает фиксированные демо-данные
+        
+    Returns:
+        Экземпляр DataProvider
+    """
+    return DataProvider(seed=seed, demo_mode=demo_mode)
 
 
 if __name__ == "__main__":
-    # Тестирование провайдера данных
-    provider = DataProvider()
+    # Тестирование провайдера данных в демо-режиме
+    provider = DataProvider(demo_mode=True)
     
-    print("Тестирование DataProvider")
+    print("Тестирование DataProvider (демо-режим)")
     print("=" * 60)
     
     for workspace in ["DefaultWorkspace", "Workspace1", "Workspace2", "Workspace3"]:
@@ -420,11 +647,14 @@ if __name__ == "__main__":
         print(f"Количество датасетов: {len(datasets)}")
         
         if datasets:
-            sample = datasets[0]
-            print(f"Пример датасета: {sample['name']}")
-            print(f"  Статус: {sample['status']}")
-            print(f"  Автообновление: {sample['auto_refresh']}")
-            print(f"  Последнее обновление: {sample['last_update_str']}")
+            for i, ds in enumerate(datasets[:3]):  # покажем первые три
+                print(f"  Датсет {i+1}: {ds['name']}")
+                print(f"    Статус: {ds['status']}")
+                print(f"    Автообновление: {ds['auto_refresh']}")
+                print(f"    Расписание: enabled={ds.get('refresh_schedule', {}).get('enabled')}, times={ds.get('refresh_schedule', {}).get('times')}")
+                print(f"    Последнее обновление: {ds['last_update_str']}")
+                print(f"    LastRefreshTime: {ds.get('lastRefreshTime', 'N/A')}")
+                print()
         
         stats = provider.get_dataset_statistics(workspace)
         print(f"Статистика: {stats['active']} активных, {stats['auto_refresh_enabled']} с автообновлением")
