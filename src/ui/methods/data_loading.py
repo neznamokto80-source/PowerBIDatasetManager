@@ -255,21 +255,16 @@ class DataLoadingMethods(BaseMethods):
     def update_stats(self, datasets):
         """Обновляет статистику."""
         total = len(datasets)
-        enabled = sum(1 for ds in datasets if ds.get('isRefreshable', False))
+        # Считаем датасеты с включенным автообновлением (refresh_schedule.enabled == True)
+        enabled = 0
+        for ds in datasets:
+            refresh_schedule = ds.get('refresh_schedule', {})
+            if isinstance(refresh_schedule, dict) and refresh_schedule.get('enabled') is True:
+                enabled += 1
         failed = sum(1 for ds in datasets if ds.get('status', '').lower() == 'failed')
         
-        # Собираем все времена последнего обновления, которые не являются пустыми или "никогда"
-        refresh_times = []
-        for ds in datasets:
-            time_val = ds.get('lastRefreshTime')
-            if time_val and time_val != 'никогда' and time_val != '':
-                refresh_times.append(time_val)
-        
-        if refresh_times:
-            # Находим максимальное время (последнее обновление)
-            last_update = max(refresh_times)
-        else:
-            last_update = 'никогда'
+        # Время получения данных (текущее время)
+        last_update = self._format_datetime_for_display(datetime.now())
         
         self.main_window.total_datasets_label.setText(f"Всего датасетов: {total}")
         self.main_window.enabled_refresh_label.setText(f"С обновлением: {enabled}")
