@@ -5,7 +5,6 @@
 """
 
 import logging
-from PyQt6.QtCore import QDateTime
 
 logger = logging.getLogger(__name__)
 

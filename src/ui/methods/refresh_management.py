@@ -149,7 +149,7 @@ class RefreshManagementMethods:
                 continue
             
             try:
-                result = self.main_window.refresh_manager.enable_auto_refresh(workspace_id, dataset_id)
+                self.main_window.refresh_manager.enable_auto_refresh(workspace_id, dataset_id)
                 success += 1
                 self.main_window.log_message(f"✓ {dataset_name}: автообновление включено")
             except Exception as e:
@@ -193,7 +193,7 @@ class RefreshManagementMethods:
                 continue
             
             try:
-                result = self.main_window.refresh_manager.disable_auto_refresh(workspace_id, dataset_id)
+                self.main_window.refresh_manager.disable_auto_refresh(workspace_id, dataset_id)
                 success += 1
                 self.main_window.log_message(f"✓ {dataset_name}: автообновление отключено")
             except Exception as e:
@@ -237,7 +237,7 @@ class RefreshManagementMethods:
                 continue
             
             try:
-                result = self.main_window.refresh_manager.trigger_manual_refresh(workspace_id, dataset_id)
+                self.main_window.refresh_manager.trigger_manual_refresh(workspace_id, dataset_id)
                 success += 1
                 self.main_window.log_message(f"✓ {dataset_name}: ручное обновление запущено")
             except Exception as e:

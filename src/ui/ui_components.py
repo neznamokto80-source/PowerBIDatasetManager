@@ -46,8 +46,8 @@ class UIComponents:
             return self.panels.create_right_panel()
         else:
             # Заглушка - возвращаем пустой виджет
-            from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel
-            panel = QWidget()
+            from PyQt6.QtWidgets import QWidget
+            QWidget()
     
     def create_logs_panel(self):
         """Создает панель логов для правой стороны."""

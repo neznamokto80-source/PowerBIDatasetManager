@@ -5,20 +5,19 @@
 """
 
 import logging
-import re
 from datetime import datetime, timedelta
-from typing import List, Dict, Any, Optional, Tuple
 
 from PyQt6.QtWidgets import QTableWidgetItem, QTreeWidgetItem
-from PyQt6.QtCore import QTimer
-from PyQt6.QtGui import QBrush, QColor
+from PyQt6.QtGui import QBrush
 
 from .progress_manager import ProgressManager
+from .base_methods import BaseMethods
+from src.ui.theme_colors import ThemeColors
 
 logger = logging.getLogger(__name__)
 
 
-class DataLoadingMethods:
+class DataLoadingMethods(BaseMethods):
     """Методы для загрузки данных из Power BI."""
     
     def __init__(self, main_window):
@@ -28,126 +27,49 @@ class DataLoadingMethods:
         Args:
             main_window: Экземпляр главного окна (PowerBIMonitorUI)
         """
-        self.main_window = main_window
+        super().__init__(main_window)
         self.progress = ProgressManager(main_window)
     
     # ========== Вспомогательные функции для работы со временем ==========
+    # Унаследованы от BaseMethods (_parse_time, _convert_utc_to_local,
+    # _convert_schedule_times, _calculate_next_refresh, _format_datetime_for_display)
     
-    def _parse_time(self, time_str: str) -> Tuple[int, int]:
+    # ========== ИСПРАВЛЕНИЕ: новый метод для обогащения датасета ==========
+    def _enrich_dataset_refresh_info(self, dataset: dict) -> None:
         """
-        Парсит строку времени формата HH:MM в кортеж (часы, минуты).
-        
-        Args:
-            time_str: Строка времени (например, "14:30")
-            
-        Returns:
-            Кортеж (часы, минуты)
+        Обновляет в словаре dataset поля, связанные со следующим обновлением:
+        - nextRefreshTime (строка для отображения)
+        Модифицирует переданный словарь на месте.
         """
-        try:
-            if not time_str:
-                return (0, 0)
-            # Убираем возможные секунды
-            parts = time_str.split(':')
-            hours = int(parts[0])
-            minutes = int(parts[1]) if len(parts) > 1 else 0
-            return (hours, minutes)
-        except (ValueError, IndexError):
-            return (0, 0)
-    
-    def _convert_utc_to_local(self, utc_time_str: str, from_offset: int = 0, to_offset: int = 5) -> str:
-        """
-        Конвертирует время из одного часового пояса в другой.
-        
-        Args:
-            utc_time_str: Время в формате HH:MM (в часовом поясе from_offset)
-            from_offset: Смещение исходного времени относительно UTC (часы)
-            to_offset: Смещение целевого времени относительно UTC (часы)
-            
-        Returns:
-            Время в формате HH:MM в целевом поясе
-        """
-        try:
-            hours, minutes = self._parse_time(utc_time_str)
-            # Применяем разницу смещений
-            diff = to_offset - from_offset
-            new_hours = hours + diff
-            
-            # Обработка перехода через сутки
-            if new_hours < 0:
-                new_hours += 24
-                # Флаг предыдущего дня (для расписания)
-            elif new_hours >= 24:
-                new_hours -= 24
-                # Флаг следующего дня
-            
-            return f"{new_hours:02d}:{minutes:02d}"
-        except Exception:
-            return utc_time_str
-    
-    def _convert_schedule_times(self, times: List[str], from_offset: int, to_offset: int) -> List[str]:
-        """
-        Конвертирует список времен расписания из одного часового пояса в другой.
-        
-        Args:
-            times: Список строк времени в формате HH:MM
-            from_offset: Смещение исходного времени относительно UTC
-            to_offset: Смещение целевого времени относительно UTC
-            
-        Returns:
-            Отсортированный список времен в целевом поясе
-        """
-        converted = []
-        for t in times:
-            converted.append(self._convert_utc_to_local(t, from_offset, to_offset))
-        # Сортируем по времени
-        converted.sort(key=lambda x: self._parse_time(x))
-        return converted
-    
-    def _calculate_next_refresh(self, schedule_times: List[str], current_local_time: datetime) -> Optional[datetime]:
-        """
-        Вычисляет следующее время обновления на основе расписания.
-        
-        Args:
-            schedule_times: Список времен расписания в локальном часовом поясе (формат HH:MM)
-            current_local_time: Текущее время в том же часовом поясе
-            
-        Returns:
-            datetime следующего обновления или None, если обновлений больше не будет сегодня
-        """
-        if not schedule_times:
-            return None
-        
-        current_hour = current_local_time.hour
-        current_minute = current_local_time.minute
-        
-        # Ищем ближайшее время сегодня
-        for time_str in schedule_times:
-            hours, minutes = self._parse_time(time_str)
-            # Если время сегодня уже прошло, пропускаем
-            if hours < current_hour or (hours == current_hour and minutes <= current_minute):
-                continue
-            # Нашли ближайшее будущее время сегодня
-            next_refresh = current_local_time.replace(hour=hours, minute=minutes, second=0, microsecond=0)
-            return next_refresh
-        
-        # Если сегодня больше нет обновлений, берем первое время завтра
-        first_time = schedule_times[0]
-        hours, minutes = self._parse_time(first_time)
-        next_refresh = current_local_time.replace(hour=hours, minute=minutes, second=0, microsecond=0)
-        next_refresh += timedelta(days=1)
-        return next_refresh
-    
-    def _format_datetime_for_display(self, dt: datetime) -> str:
-        """
-        Форматирует datetime для отображения пользователю.
-        
-        Args:
-            dt: Объект datetime
-            
-        Returns:
-            Строка в формате "дд.мм.гггг, HH:MM"
-        """
-        return dt.strftime("%d.%m.%Y, %H:%M")
+        refresh_schedule = dataset.get('refresh_schedule', {})
+        enabled = refresh_schedule.get('enabled') if isinstance(refresh_schedule, dict) else None
+
+        # Значение по умолчанию
+        next_refresh = dataset.get('nextRefreshTime', 'не запланировано')
+
+        # Если автообновление выключено
+        if enabled is False:
+            next_refresh = "N/A"
+        else:
+            # Пытаемся вычислить следующее обновление, если есть времена
+            times = refresh_schedule.get('times', []) if isinstance(refresh_schedule, dict) else []
+            if enabled is True and times:
+                # Конвертируем из UTC+6 в UTC+5 (Екатеринбург)
+                from_offset = 6
+                to_offset = 5
+                schedule_times_local = self._convert_schedule_times(times, from_offset, to_offset)
+                current_time = datetime.now()
+                next_refresh_dt = self._calculate_next_refresh(schedule_times_local, current_time)
+                if next_refresh_dt:
+                    next_refresh = self._format_datetime_for_display(next_refresh_dt)
+                else:
+                    next_refresh = "не запланировано"
+            elif enabled is True:
+                # Включено, но нет времен → не запланировано
+                next_refresh = "не запланировано"
+
+        # Сохраняем обратно
+        dataset['nextRefreshTime'] = next_refresh
     
     # ========== Основные методы ==========
     
@@ -246,6 +168,10 @@ class DataLoadingMethods:
             else:
                 datasets = self.main_window.client.get_datasets_in_workspace(self.main_window.current_workspace)
             
+            # ========== ИСПРАВЛЕНИЕ: обогащаем каждый датасет актуальным nextRefreshTime ==========
+            for ds in datasets:
+                self._enrich_dataset_refresh_info(ds)
+            
             self.main_window.datasets = datasets
             self.main_window.log_message(f"✓ Загружено датасетов: {len(datasets)}")
             
@@ -257,20 +183,8 @@ class DataLoadingMethods:
                 refresh = ds.get('lastRefreshTime', 'никогда')
                 item = QTreeWidgetItem([name, status, refresh])
                 
-                # Цветовое выделение для дерева
-                background_color = None
-                status_lower = status.lower()
-                if status_lower in ('failed', 'error'):
-                    background_color = QColor(255, 200, 200)  # светло-красный
-                else:
-                    refresh_schedule = ds.get('refresh_schedule', {})
-                    enabled = refresh_schedule.get('enabled') if isinstance(refresh_schedule, dict) else None
-                    if enabled is False:
-                        # Выбор цвета в зависимости от темы
-                        if self.main_window.current_theme == "Тёмная":
-                            background_color = QColor(60, 60, 60)  # тёмно-серый для тёмной темы
-                        else:
-                            background_color = QColor(240, 240, 240)  # светло-серый для светлой темы
+                # Цветовое выделение для дерева - используем общую логику определения цвета
+                background_color = ThemeColors.get_dataset_background_color(ds, self.main_window.current_theme)
                 
                 if background_color:
                     brush = QBrush(background_color)
@@ -304,13 +218,13 @@ class DataLoadingMethods:
             dataset_id = ds.get('id', '') or ds.get('datasetId', '')
             status = ds.get('status', 'unknown')
             last_refresh = ds.get('lastRefreshTime', 'никогда')
+            # ========== ИСПРАВЛЕНИЕ: теперь nextRefreshTime уже обогащён ==========
             next_refresh = ds.get('nextRefreshTime', 'не запланировано')
             
             # Определяем статус автоматического обновления
             auto_refresh_status = "Неизвестно"
             refresh_schedule = ds.get('refresh_schedule', {})
             enabled = None
-            schedule_times_local = []
             if isinstance(refresh_schedule, dict):
                 enabled = refresh_schedule.get('enabled')
                 if enabled is True:
@@ -319,24 +233,6 @@ class DataLoadingMethods:
                     auto_refresh_status = "Выключено"
                 elif 'days' in refresh_schedule or 'times' in refresh_schedule:
                     auto_refresh_status = "Настроено"
-                
-                # Если расписание включено, вычисляем следующее обновление
-                if enabled is True:
-                    times = refresh_schedule.get('times', [])
-                    if times:
-                        # Конвертируем времена из UTC+6 в UTC+5 (Екатеринбург)
-                        from_offset = 6  # UTC+6
-                        to_offset = 5    # UTC+5
-                        schedule_times_local = self._convert_schedule_times(times, from_offset, to_offset)
-                        # Вычисляем следующее обновление
-                        current_time = datetime.now()
-                        next_refresh_dt = self._calculate_next_refresh(schedule_times_local, current_time)
-                        if next_refresh_dt:
-                            next_refresh = self._format_datetime_for_display(next_refresh_dt)
-            
-            # Если автообновление выключено, следующее обновление = N/A
-            if enabled is False:
-                next_refresh = "N/A"
             
             self.main_window.dataset_table.setItem(row, 0, QTableWidgetItem(name))
             self.main_window.dataset_table.setItem(row, 1, QTableWidgetItem(workspace))
@@ -346,23 +242,8 @@ class DataLoadingMethods:
             self.main_window.dataset_table.setItem(row, 5, QTableWidgetItem(next_refresh))
             self.main_window.dataset_table.setItem(row, 6, QTableWidgetItem(auto_refresh_status))
             
-            # Цветовое выделение строк
-            background_color = None
-            status_lower = status.lower()
-            if status_lower in ('failed', 'error'):
-                background_color = QColor(255, 200, 200)  # светло-красный
-            elif enabled is False:
-                # Выбор цвета в зависимости от темы
-                if self.main_window.current_theme == "Тёмная":
-                    background_color = QColor(60, 60, 60)  # тёмно-серый для тёмной темы
-                else:
-                    background_color = QColor(250, 250, 250)  # очень светло-серый для светлой темы
-            elif next_refresh == "не запланировано":
-                # Выделение строк, где следующее обновление не запланировано
-                if self.main_window.current_theme == "Тёмная":
-                    background_color = QColor(80, 80, 40)  # тёмно-жёлтый для тёмной темы
-                else:
-                    background_color = QColor(255, 255, 230)  # очень светло-жёлтый для светлой темы
+            # Цветовое выделение строк - используем общую логику определения цвета
+            background_color = ThemeColors.get_dataset_background_color(ds, self.main_window.current_theme)
             
             if background_color:
                 brush = QBrush(background_color)
@@ -413,6 +294,7 @@ class DataLoadingMethods:
         workspace_name = self.main_window.get_workspace_name(workspace_id)
         status = dataset.get('status', 'unknown')
         last_refresh = dataset.get('lastRefreshTime', 'никогда')
+        # ========== ИСПРАВЛЕНИЕ: nextRefreshTime уже обогащён ==========
         next_refresh = dataset.get('nextRefreshTime', 'не запланировано')
         
         # Получаем информацию о расписании
@@ -423,8 +305,6 @@ class DataLoadingMethods:
         
         # Переменные для вычисления следующего обновления
         schedule_times_local = []
-        schedule_timezone = ''
-        schedule_days = []
         
         if isinstance(refresh_schedule, dict) and refresh_schedule:
             enabled = refresh_schedule.get('enabled')
@@ -441,8 +321,7 @@ class DataLoadingMethods:
             timezone = refresh_schedule.get('localTimeZoneId', '')
             
             # Сохраняем для вычислений
-            schedule_days = days if isinstance(days, list) else []
-            schedule_timezone = timezone
+            days if isinstance(days, list) else []
             
             if days and times:
                 days_str = ', '.join(days) if isinstance(days, list) else str(days)
@@ -467,18 +346,16 @@ class DataLoadingMethods:
         else:
             auto_refresh_status = 'Не настроено'
         
+        # ========== ИСПРАВЛЕНИЕ: убрано повторное вычисление next_refresh ==========
         # Если автообновление выключено, следующее обновление = N/A
         if enabled is False:
             next_refresh = "N/A"
-        elif enabled is True and schedule_times_local:
-            # Вычисляем следующее обновление на основе текущего времени в Екатеринбурге
+        # Для включённого расписания next_refresh уже обогащён, но если почему-то нет – пересчитаем
+        elif enabled is True and schedule_times_local and next_refresh in ('не запланировано', ''):
             current_time = datetime.now()
-            # Предполагаем, что текущее время уже в локальном поясе пользователя (UTC+5)
             next_refresh_dt = self._calculate_next_refresh(schedule_times_local, current_time)
             if next_refresh_dt:
                 next_refresh = self._format_datetime_for_display(next_refresh_dt)
-            else:
-                next_refresh = "не удалось вычислить"
         
         # Получаем информацию о последнем обновлении
         last_refresh_info = dataset.get('last_refresh', {})

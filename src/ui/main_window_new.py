@@ -6,24 +6,13 @@
 """
 
 import logging
-from typing import List, Dict, Any, Optional
 
 from PyQt6.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
-    QTableWidget, QTableWidgetItem, QComboBox, QGroupBox, QTextEdit,
-    QTabWidget, QMessageBox, QProgressBar, QSplitter, QTreeWidget,
-    QTreeWidgetItem, QHeaderView, QToolBar, QStatusBar, QDialog,
-    QFormLayout, QLineEdit, QTimeEdit, QCheckBox, QSpinBox,
-    QDialogButtonBox, QAbstractItemView, QMenu
+    QMainWindow, QWidget, QVBoxLayout, QSplitter, QStatusBar
 )
-from PyQt6.QtCore import Qt, QTimer, QDateTime, QDate, QTime, pyqtSignal
-from PyQt6.QtGui import QIcon, QFont, QAction, QPalette, QColor
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 
-from src.core.dependencies import DependencyManager
-from src.core.powerbi_client import PowerBIClient, parse_utc_to_local
-from src.core.refresh_manager import RefreshManager, create_default_schedule
 from src.ui.ui_components import UIComponents
-from src.integration.ui_integration import UIIntegration, UIDataProvider
 
 # Импорт классов методов
 from src.ui.methods.connection import ConnectionMethods

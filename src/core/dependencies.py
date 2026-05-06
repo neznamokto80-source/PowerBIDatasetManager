@@ -9,7 +9,7 @@ import subprocess
 import sys
 import os
 import logging
-from typing import List, Tuple, Optional
+from typing import List, Tuple
 
 # Настройка логирования
 logger = logging.getLogger(__name__)

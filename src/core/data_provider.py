@@ -9,7 +9,7 @@ import random
 import threading
 import time
 from datetime import datetime, timedelta
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from enum import Enum
 
 from modules.connection_manager import get_connection_manager

@@ -5,15 +5,13 @@
 """
 
 import logging
-from typing import Optional
 from datetime import datetime, timedelta
 
 from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QTextEdit, QPushButton,
-    QTreeWidgetItem, QMenu, QFormLayout, QGroupBox
+    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTreeWidgetItem,
+    QMenu, QFormLayout, QGroupBox
 )
 from PyQt6.QtGui import QAction
-from PyQt6.QtCore import QTimer
 
 logger = logging.getLogger(__name__)
 

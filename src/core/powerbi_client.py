@@ -8,7 +8,6 @@
 import logging
 import os
 import json
-import re
 import requests
 from datetime import datetime
 from azure.identity import InteractiveBrowserCredential, AzureCliCredential
@@ -375,7 +374,6 @@ class PowerBIClient:
 
 class AuthenticationError(Exception):
     """Исключение для ошибок аутентификации."""
-    pass
 
 
 class APIRequestError(Exception):
@@ -388,7 +386,6 @@ class APIRequestError(Exception):
 
 class ResourceNotFoundError(Exception):
     """Исключение для случаев, когда ресурс не найден."""
-    pass
 
 
 def parse_utc_to_local(utc_str: str, fmt: str = "%d-%m-%Y %H:%M:%S") -> str:

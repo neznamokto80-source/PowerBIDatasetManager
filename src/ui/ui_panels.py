@@ -7,12 +7,25 @@
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QComboBox,
-    QGroupBox, QTreeWidget, QTreeWidgetItem, QCheckBox, QTableWidget,
-    QTableWidgetItem, QHeaderView, QAbstractItemView, QTabWidget,
-    QTextEdit, QFormLayout, QProgressBar, QSplitter
+    QGroupBox, QTreeWidget, QCheckBox, QTableWidget, QHeaderView,
+    QAbstractItemView, QTabWidget, QTextEdit, QFormLayout,
+    QProgressBar
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
+
+from .widgets import (
+    create_group_box,
+    create_button,
+    create_table_widget,
+    create_tree_widget,
+    create_label,
+    create_progress_bar,
+    create_text_edit,
+    create_combo_box,
+    create_check_box,
+    create_tab_widget
+)
 
 
 class UIPanels:
@@ -35,83 +48,74 @@ class UIPanels:
         # Кнопка подключения теперь в верхней панели
         
         # Группа "Рабочие области"
-        workspace_group = QGroupBox("Рабочие области")
         workspace_layout = QVBoxLayout()
         
-        self.main.workspace_combo = QComboBox()
+        self.main.workspace_combo = create_combo_box()
         self.main.workspace_combo.currentIndexChanged.connect(self.main.on_workspace_selected)
         workspace_layout.addWidget(self.main.workspace_combo)
         
-        refresh_workspaces_btn = QPushButton("Обновить список")
-        refresh_workspaces_btn.clicked.connect(self.main.load_workspaces)
+        refresh_workspaces_btn = create_button("Обновить список", callback=self.main.load_workspaces)
         workspace_layout.addWidget(refresh_workspaces_btn)
         
-        workspace_group.setLayout(workspace_layout)
+        workspace_group = create_group_box("Рабочие области", workspace_layout)
         layout.addWidget(workspace_group)
         
         # Группа "Датасеты"
-        dataset_group = QGroupBox("Датасеты")
         dataset_layout = QVBoxLayout()
         
-        self.main.dataset_tree = QTreeWidget()
-        self.main.dataset_tree.setHeaderLabels(["Name", "Status", "Refresh"])
+        self.main.dataset_tree = create_tree_widget(["Name", "Status", "Refresh"])
         self.main.dataset_tree.itemClicked.connect(self.main.on_dataset_selected)
         # Увеличиваем минимальную высоту дерева датасетов
         self.main.dataset_tree.setMinimumHeight(300)
         dataset_layout.addWidget(self.main.dataset_tree)
         
-        refresh_datasets_btn = QPushButton("Обновить статусы")
-        refresh_datasets_btn.clicked.connect(self.main.load_datasets)
+        refresh_datasets_btn = create_button("Обновить статусы", callback=self.main.load_datasets)
         dataset_layout.addWidget(refresh_datasets_btn)
         
-        dataset_group.setLayout(dataset_layout)
+        dataset_group = create_group_box("Датасеты", dataset_layout)
         layout.addWidget(dataset_group)
         
         # Группа "Фильтры"
-        filter_group = QGroupBox("Фильтры")
         filter_layout = QVBoxLayout()
         
-        self.main.filter_enabled = QCheckBox("Только с включенным обновлением")
+        self.main.filter_enabled = create_check_box("Только с включенным обновлением")
         self.main.filter_enabled.stateChanged.connect(self.main.apply_filters)
         filter_layout.addWidget(self.main.filter_enabled)
         
-        self.main.filter_recent = QCheckBox("Только с выключенным обновлением")
+        self.main.filter_recent = create_check_box("Только с выключенным обновлением")
         self.main.filter_recent.stateChanged.connect(self.main.apply_filters)
         filter_layout.addWidget(self.main.filter_recent)
         
         # Новые фильтры
-        self.main.filter_errors = QCheckBox("С ошибками при обновлении")
+        self.main.filter_errors = create_check_box("С ошибками при обновлении")
         self.main.filter_errors.stateChanged.connect(self.main.apply_filters)
         filter_layout.addWidget(self.main.filter_errors)
         
-        self.main.filter_except_not_use = QCheckBox("Все кроме not_use")
+        self.main.filter_except_not_use = create_check_box("Все кроме not_use")
         self.main.filter_except_not_use.stateChanged.connect(self.main.apply_filters)
         filter_layout.addWidget(self.main.filter_except_not_use)
         
-        self.main.filter_in_progress = QCheckBox("В процессе обновления")
+        self.main.filter_in_progress = create_check_box("В процессе обновления")
         self.main.filter_in_progress.stateChanged.connect(self.main.apply_filters)
         filter_layout.addWidget(self.main.filter_in_progress)
         
-        filter_group.setLayout(filter_layout)
+        filter_group = create_group_box("Фильтры", filter_layout)
         layout.addWidget(filter_group)
 
         # Группа "Мониторинг"
-        monitor_group = QGroupBox("Мониторинг (переодичность опроса 30 сек)")
         monitor_layout = QVBoxLayout()
 
-        self.main.monitor_status = QLabel("Мониторинг не активен")
+        self.main.monitor_status = create_label("Мониторинг не активен")
         monitor_layout.addWidget(self.main.monitor_status)
 
-        self.main.start_monitor_btn = QPushButton("Запустить мониторинг")
-        self.main.start_monitor_btn.clicked.connect(self.main.start_monitoring)
+        self.main.start_monitor_btn = create_button("Запустить мониторинг", callback=self.main.start_monitoring)
         monitor_layout.addWidget(self.main.start_monitor_btn)
 
-        self.main.stop_monitor_btn = QPushButton("Остановить мониторинг")
-        self.main.stop_monitor_btn.clicked.connect(self.main.stop_monitoring)
+        self.main.stop_monitor_btn = create_button("Остановить мониторинг", callback=self.main.stop_monitoring)
         self.main.stop_monitor_btn.setEnabled(False)
         monitor_layout.addWidget(self.main.stop_monitor_btn)
 
-        monitor_group.setLayout(monitor_layout)
+        monitor_group = create_group_box("Мониторинг (переодичность опроса 30 сек)", monitor_layout)
         layout.addWidget(monitor_group)
 
         layout.addStretch()
@@ -175,6 +179,8 @@ class UIPanels:
             "Название", "Рабочая область", "ID датасета", "Status",
             "Последнее обновление", "Следующее", "Автообновление"
         ])
+        # Скрыть столбец ID датасета
+        self.main.dataset_table.setColumnHidden(2, True)
         # Настройка ширины колонок: колонка статуса уже
         self.main.dataset_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         self.main.dataset_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)

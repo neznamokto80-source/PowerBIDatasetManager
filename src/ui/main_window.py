@@ -6,24 +6,15 @@
 """
 
 import logging
-from typing import List, Dict, Any, Optional
 
 from PyQt6.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
-    QTableWidget, QTableWidgetItem, QComboBox, QGroupBox, QTextEdit,
-    QTabWidget, QMessageBox, QProgressBar, QSplitter, QTreeWidget,
-    QTreeWidgetItem, QHeaderView, QToolBar, QStatusBar, QDialog,
-    QFormLayout, QLineEdit, QTimeEdit, QCheckBox, QSpinBox,
-    QDialogButtonBox, QAbstractItemView, QMenu, QApplication
+    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QSplitter,
+    QStatusBar
 )
-from PyQt6.QtCore import Qt, QTimer, QDateTime, QDate, QTime, pyqtSignal
-from PyQt6.QtGui import QIcon, QFont, QAction, QPalette, QColor
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 
-from src.core.dependencies import DependencyManager
-from src.core.powerbi_client import PowerBIClient, parse_utc_to_local
-from src.core.refresh_manager import RefreshManager, create_default_schedule
 from src.ui.ui_components import UIComponents
-from src.integration.ui_integration import UIIntegration, UIDataProvider
+from src.ui.theme_colors import apply_theme_to_app
 
 # Импорт классов методов
 from src.ui.methods.connection import ConnectionMethods
@@ -308,30 +299,8 @@ class PowerBIMonitorUI(QMainWindow):
         # Сохраняем текущую тему
         self.current_theme = theme_name
         
-        palette = QPalette()
-        
-        if theme_name == "Тёмная":
-            # Тёмная палитра
-            palette.setColor(QPalette.ColorRole.Window, QColor(53, 53, 53))
-            palette.setColor(QPalette.ColorRole.WindowText, Qt.GlobalColor.white)
-            palette.setColor(QPalette.ColorRole.Base, QColor(25, 25, 25))
-            palette.setColor(QPalette.ColorRole.AlternateBase, QColor(53, 53, 53))
-            palette.setColor(QPalette.ColorRole.ToolTipBase, Qt.GlobalColor.black)
-            palette.setColor(QPalette.ColorRole.ToolTipText, Qt.GlobalColor.white)
-            palette.setColor(QPalette.ColorRole.Text, Qt.GlobalColor.white)
-            palette.setColor(QPalette.ColorRole.Button, QColor(53, 53, 53))
-            palette.setColor(QPalette.ColorRole.ButtonText, Qt.GlobalColor.white)
-            palette.setColor(QPalette.ColorRole.BrightText, Qt.GlobalColor.red)
-            palette.setColor(QPalette.ColorRole.Link, QColor(42, 130, 218))
-            palette.setColor(QPalette.ColorRole.Highlight, QColor(42, 130, 218))
-            palette.setColor(QPalette.ColorRole.HighlightedText, Qt.GlobalColor.black)
-            QApplication.instance().setPalette(palette)
-        elif theme_name == "Светлая":
-            # Светлая палитра (стандартная) - сброс к стандартной палитре
-            QApplication.instance().setPalette(QApplication.style().standardPalette())
-        else:
-            # Неизвестная тема, используем стандартную палитру
-            QApplication.instance().setPalette(QApplication.style().standardPalette())
+        # Применяем тему через модуль theme_colors
+        apply_theme_to_app(theme_name)
         
         # Обновляем статус бар для отображения текущей темы
         self.status_bar.showMessage(f"Тема изменена на: {theme_name}", 3000)

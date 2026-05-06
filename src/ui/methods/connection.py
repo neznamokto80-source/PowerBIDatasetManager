@@ -5,11 +5,8 @@
 """
 
 import logging
-import os
-from typing import List, Dict, Any, Optional
 
 from PyQt6.QtWidgets import QMessageBox
-from PyQt6.QtCore import QDateTime
 
 from src.core.dependencies import DependencyManager
 from src.core.powerbi_client import PowerBIClient
@@ -71,7 +68,7 @@ class ConnectionMethods:
             self.main_window.status_bar.showMessage("Аутентификация...")
             
             # Аутентификация
-            token = self.main_window.client.authenticate()
+            self.main_window.client.authenticate()
             self.main_window.log_message(
                 f"✓ Аутентификация успешна (метод: {self.main_window.client._auth_method})"
             )

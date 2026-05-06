@@ -7,11 +7,10 @@
 
 import logging
 import time
-from typing import Dict, Any, Optional, List, Tuple
+from typing import Dict, Any, Optional, List
 from datetime import datetime
-from .powerbi_client import PowerBIClient, parse_utc_to_local, APIRequestError
+from .powerbi_client import PowerBIClient, parse_utc_to_local
 from .refresh_operations import (
-    create_default_schedule,
     enable_auto_refresh as enable_auto_refresh_op,
     disable_auto_refresh as disable_auto_refresh_op,
     trigger_manual_refresh as trigger_manual_refresh_op
