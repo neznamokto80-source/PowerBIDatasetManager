@@ -7,10 +7,10 @@
 
 import sys
 import os
+import subprocess
 import logging
-import importlib.util
 
-# Настройка логирования
+# Настройка логирования (в файл и в консоль, если консоль есть)
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -23,34 +23,64 @@ logging.basicConfig(
 # Добавляем текущую директорию в путь для импорта src
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-def load_dependency_manager():
-    """Динамически загружает DependencyManager, избегая циклических импортов."""
-    # Путь к модулю dependencies
-    deps_path = os.path.join(os.path.dirname(__file__), 'src', 'core', 'dependencies.py')
-    if not os.path.exists(deps_path):
-        raise ImportError(f"Файл не найден: {deps_path}")
-    
-    # Динамическая загрузка модуля
-    spec = importlib.util.spec_from_file_location("dependencies", deps_path)
-    deps_module = importlib.util.module_from_spec(spec)
-    sys.modules["dependencies"] = deps_module
-    spec.loader.exec_module(deps_module)
-    
-    # Получаем класс DependencyManager
-    if hasattr(deps_module, 'DependencyManager'):
-        return deps_module.DependencyManager
-    else:
-        raise AttributeError("Класс DependencyManager не найден в модуле")
 
-# Проверка и установка зависимостей перед импортом PyQt6
-try:
-    DependencyManager = load_dependency_manager()
-    DependencyManager.ensure_dependencies()
-except Exception as e:
-    logging.error(f"Ошибка при проверке зависимостей: {e}")
-    logging.error("Установите зависимости вручную: pip install -r requirements.txt")
+def ensure_dependencies():
+    """Проверяет и устанавливает необходимые пакеты без перезапуска процесса."""
+    required_packages = [
+        "PyQt6",
+        "azure-identity",
+        "azure-core",
+        "msal",
+        "requests",
+        "python-dateutil",
+    ]
+    missing = []
+    for package in required_packages:
+        # Пробуем импортировать (для PyQt6 особый случай)
+        if package == "PyQt6":
+            try:
+                __import__("PyQt6")
+            except ImportError:
+                missing.append(package)
+        else:
+            # Для остальных используем имя модуля, которое может отличаться
+            module_map = {
+                "azure-identity": "azure.identity",
+                "azure-core": "azure.core",
+                "msal": "msal",
+                "requests": "requests",
+                "python-dateutil": "dateutil",
+            }
+            module_name = module_map.get(package, package)
+            try:
+                __import__(module_name)
+            except ImportError:
+                missing.append(package)
+
+    if not missing:
+        logging.info("Все зависимости уже установлены.")
+        return True
+
+    logging.warning(f"Отсутствуют пакеты: {missing}. Установка...")
+    try:
+        for pkg in missing:
+            logging.info(f"Установка {pkg}...")
+            subprocess.check_call([sys.executable, "-m", "pip", "install", pkg])
+        logging.info("Все пакеты установлены успешно.")
+        return True
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Ошибка установки пакетов: {e}")
+        return False
+
+
+# Проверка зависимостей
+if not ensure_dependencies():
+    logging.error("Не удалось установить необходимые пакеты. Завершение.")
+    # Пауза на случай запуска двойным кликом (чтобы увидеть ошибку)
+    input("Нажмите Enter для выхода...")
     sys.exit(1)
 
+# Теперь можно импортировать PyQt6 и остальные модули
 from PyQt6.QtWidgets import QApplication
 from src.ui.main_window import PowerBIMonitorUI
 
@@ -58,15 +88,9 @@ from src.ui.main_window import PowerBIMonitorUI
 def main():
     """Точка входа в приложение."""
     app = QApplication(sys.argv)
-    
-    # Настройка стиля
     app.setStyle("Fusion")
-    
-    # Создание и отображение главного окна
     window = PowerBIMonitorUI()
     window.show()
-    
-    # Запуск основного цикла приложения
     sys.exit(app.exec())
 
 
