@@ -15,6 +15,8 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QAction
 
+from ..ui.dataset_details_dialog import DatasetDetailsDialog
+
 logger = logging.getLogger(__name__)
 
 
@@ -193,151 +195,24 @@ class UIOperations:
                         break
         
         if dataset:
-            # Получаем имя датасета для заголовка диалога
-            dataset_name = dataset.get('name', 'Неизвестно')
-            
             # Сохраняем текущий датасет и рабочую область для кнопок
             previous_dataset = self.main_window.current_dataset
             previous_workspace = self.main_window.current_workspace
             self.main_window.current_dataset = dataset
             self.main_window.current_workspace = dataset.get('workspaceId', previous_workspace)
             
+            # Получаем данные расписания из датасета (поле refresh_schedule)
+            schedule_data = dataset.get('refresh_schedule')
+            if not isinstance(schedule_data, dict):
+                schedule_data = None
+            
             # Создаем диалог
-            dialog = QDialog(self.main_window)
-            dialog.setWindowTitle(f"Детали датасета: {dataset_name}")
-            dialog.setGeometry(200, 200, 600, 500)
-            
-            main_layout = QVBoxLayout(dialog)
-            
-            # Группа с информацией
-            info_group = QGroupBox("Информация о датасете")
-            form_layout = QFormLayout()
-            
-            # Вычисляем значения полей аналогично update_dataset_details
-            name = dataset.get('name', 'Без имени')
-            dataset_id = dataset.get('id', 'N/A')
-            workspace_id = dataset.get('workspaceId') or dataset.get('workspace_id', '')
-            workspace_name = self.main_window.get_workspace_name(workspace_id)
-            status = dataset.get('status', 'unknown')
-            last_refresh = dataset.get('lastRefreshTime', 'никогда')
-            schedule_text, auto_refresh_status, next_refresh, enabled = (
-                self.main_window.data_loading_methods.get_schedule_display_for_dataset(dataset)
+            dialog = DatasetDetailsDialog(
+                parent=self.main_window,
+                dataset=dataset,
+                main_window=self.main_window,
+                initial_schedule=schedule_data
             )
-            
-            # Получаем информацию о последнем обновлении
-            last_refresh_info = dataset.get('last_refresh', {})
-            last_refresh_details = 'нет данных'
-            if isinstance(last_refresh_info, dict) and last_refresh_info:
-                end_time = last_refresh_info.get('endTime', '')
-                refresh_status = last_refresh_info.get('status', '')
-                refresh_type = last_refresh_info.get('refreshType', '')
-                
-                details_parts = []
-                if end_time:
-                    try:
-                        utc_dt = datetime.fromisoformat(end_time.replace('Z', '+00:00'))
-                        local_dt = utc_dt + timedelta(hours=5)
-                        local_dt_rounded = local_dt.replace(second=0, microsecond=0)
-                        formatted = local_dt_rounded.strftime('%d.%m.%Y, %H:%M')
-                        details_parts.append(f'Время: {formatted} (Екатеринбург)')
-                        # Обновляем last_refresh для отображения в основном поле
-                        last_refresh = formatted
-                    except Exception:
-                        details_parts.append(f'Время: {end_time}')
-                if refresh_status:
-                    details_parts.append(f'Статус: {refresh_status}')
-                if refresh_type:
-                    details_parts.append(f'Тип: {refresh_type}')
-                
-                if details_parts:
-                    last_refresh_details = '; '.join(details_parts)
-            
-            # Создаем виджеты с вычисленными значениями
-            detail_name = QLabel(name)
-            detail_id = QLabel(dataset_id)
-            detail_workspace = QLabel(workspace_name)
-            detail_refresh_status = QLabel(status)
-            detail_last_refresh = QLabel(last_refresh)
-            detail_next_refresh = QLabel(next_refresh)
-            detail_schedule = QLabel(schedule_text)
-            detail_auto_refresh = QLabel(auto_refresh_status)
-            detail_last_refresh_details = QLabel(last_refresh_details)
-            
-            form_layout.addRow("Название:", detail_name)
-            form_layout.addRow("ID:", detail_id)
-            form_layout.addRow("Рабочая область:", detail_workspace)
-            form_layout.addRow("Статус обновления:", detail_refresh_status)
-            form_layout.addRow("Последнее обновление:", detail_last_refresh)
-            form_layout.addRow("Следующее обновление:", detail_next_refresh)
-            form_layout.addRow("Расписание:", detail_schedule)
-            form_layout.addRow("Автообновление:", detail_auto_refresh)
-            form_layout.addRow("Детали последнего обновления:", detail_last_refresh_details)
-            
-            info_group.setLayout(form_layout)
-            main_layout.addWidget(info_group)
-            
-            # Кнопки управления
-            button_layout = QHBoxLayout()
-            
-            enable_btn = QPushButton("Включить обновление")
-            enable_btn.clicked.connect(self.main_window.enable_auto_refresh)
-            # Активна, если автообновление выключено (enabled != True)
-            enable_btn.setEnabled(enabled is not True)
-            button_layout.addWidget(enable_btn)
-            
-            disable_btn = QPushButton("Отключить обновление")
-            disable_btn.clicked.connect(self.main_window.disable_auto_refresh)
-            # Активна, если автообновление включено (enabled == True)
-            disable_btn.setEnabled(enabled is True)
-            button_layout.addWidget(disable_btn)
-            
-            manual_refresh_btn = QPushButton("Запустить обновление")
-            manual_refresh_btn.clicked.connect(self.main_window.trigger_manual_refresh)
-            manual_refresh_btn.setEnabled(dataset.get('isRefreshable', False))
-            button_layout.addWidget(manual_refresh_btn)
-
-            def refresh_dialog_schedule_block():
-                did = dataset.get('id')
-                fresh = None
-                for d in self.main_window.datasets or []:
-                    if d.get('id') == did:
-                        fresh = d
-                        break
-                if not fresh:
-                    return
-                sch, auto, nxt, en = (
-                    self.main_window.data_loading_methods.get_schedule_display_for_dataset(fresh)
-                )
-                detail_schedule.setText(sch)
-                detail_auto_refresh.setText(auto)
-                detail_next_refresh.setText(nxt)
-                enable_btn.setEnabled(en is not True)
-                disable_btn.setEnabled(en is True)
-
-            def on_edit_schedule_clicked():
-                ws_id = (
-                    dataset.get('workspaceId')
-                    or dataset.get('workspace_id')
-                    or self.main_window.current_workspace
-                )
-                ok = self.main_window.refresh_operations.edit_refresh_schedule(
-                    dataset=dataset,
-                    workspace_id=ws_id,
-                )
-                if ok:
-                    refresh_dialog_schedule_block()
-
-            schedule_btn = QPushButton("Расписание…")
-            schedule_btn.setToolTip("Создать, изменить или удалить расписание в Power BI")
-            schedule_btn.clicked.connect(on_edit_schedule_clicked)
-            button_layout.addWidget(schedule_btn)
-            
-            main_layout.addLayout(button_layout)
-            
-            # Кнопка закрытия
-            close_btn = QPushButton("Закрыть")
-            close_btn.clicked.connect(dialog.close)
-            main_layout.addWidget(close_btn)
             
             # Восстановление предыдущего состояния после закрытия диалога
             def restore_state():
@@ -347,7 +222,7 @@ class UIOperations:
             
             dialog.exec()
             
-            self.main_window.log_message(f"Открыты детали датасета: {dataset_name}")
+            self.main_window.log_message(f"Открыты детали датасета: {dataset.get('name', 'Неизвестно')}")
     
     def get_selected_datasets(self, table):
         """

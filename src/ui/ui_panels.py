@@ -372,7 +372,7 @@ class UIPanels:
         hours_minutes_layout.addWidget(self.main.schedule_hours_combo)
         hours_minutes_layout.addWidget(QLabel("Минуты:"))
         self.main.schedule_minutes_combo = QComboBox()
-        self.main.schedule_minutes_combo.addItems([f"{i:02d}" for i in range(0, 60, 5)])  # 00,05,10,...,55
+        self.main.schedule_minutes_combo.addItems(["00", "30"])  # только 00 и 30
         hours_minutes_layout.addWidget(self.main.schedule_minutes_combo)
         time_edit_layout.addLayout(hours_minutes_layout)
         

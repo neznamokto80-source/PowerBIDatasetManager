@@ -105,7 +105,7 @@ class ScheduleEditorDialog(QDialog):
         self._hours_combo = QComboBox()
         self._hours_combo.addItems([f"{i:02d}" for i in range(24)])  # 00-23
         self._minutes_combo = QComboBox()
-        self._minutes_combo.addItems([f"{i:02d}" for i in range(0, 60, 5)])  # 00,05,10,...,55
+        self._minutes_combo.addItems(["00", "30"])  # только 00 и 30
         # Установить значения по умолчанию 03:00
         self._hours_combo.setCurrentText("03")
         self._minutes_combo.setCurrentText("00")
