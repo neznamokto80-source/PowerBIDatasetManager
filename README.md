@@ -2,7 +2,10 @@
 
 Приложение для мониторинга и управления датасетами Power BI через графический интерфейс на PyQt6.
 markdown
-![Скриншот](screenshot/screen.png)
+![Скриншот](screenshot/screen2.png)
+![Скриншот](screenshot/screen2.png)
+![Скриншот](screenshot/screen3.png)
+![Скриншот](screenshot/screen4.png)
 ## Возможности
 
 - **Подключение к Power BI**: Аутентификация через Azure Interactive Browser или Azure CLI
