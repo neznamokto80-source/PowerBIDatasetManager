@@ -38,18 +38,41 @@ class UIToolbars:
         
         toolbar.addSeparator()
         
-        auth_action = QAction("Аутентификация", self.main)
-        auth_action.triggered.connect(self.main.reauthenticate)
-        toolbar.addAction(auth_action)
-        
-        settings_action = QAction("Настройки", self.main)
-        settings_action.triggered.connect(self.main.open_settings)
-        toolbar.addAction(settings_action)
-        
-        toolbar.addSeparator()
-        
         help_action = QAction("Справка", self.main)
         help_action.triggered.connect(self.main.show_help)
         toolbar.addAction(help_action)
         
         return toolbar
+
+    def create_button_panel(self):
+        """Создает панель с отдельными кнопками (замена панели инструментов)."""
+        from PyQt6.QtWidgets import QWidget, QHBoxLayout, QPushButton
+        
+        panel = QWidget()
+        layout = QHBoxLayout(panel)
+        layout.setContentsMargins(5, 5, 5, 5)
+        
+        # Кнопка "Подключить"
+        connect_btn = QPushButton("Подключить")
+        connect_btn.clicked.connect(self.main.connect_to_powerbi)
+        layout.addWidget(connect_btn)
+        
+        # Кнопка "Обновить" (добавлена по требованию)
+        refresh_btn = QPushButton("Обновить")
+        refresh_btn.clicked.connect(self.main.refresh_data)
+        layout.addWidget(refresh_btn)
+        
+        # Растягиваемое пространство между левыми и правыми кнопками
+        layout.addStretch()
+        
+        # Кнопка "Тестовые данные"
+        test_data_btn = QPushButton("Тестовые данные")
+        test_data_btn.clicked.connect(self.main.load_test_data)
+        layout.addWidget(test_data_btn)
+        
+        # Кнопка "Справка"
+        help_btn = QPushButton("Справка")
+        help_btn.clicked.connect(self.main.show_help)
+        layout.addWidget(help_btn)
+        
+        return panel

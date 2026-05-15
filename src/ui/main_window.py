@@ -8,60 +8,20 @@
 import logging
 
 from PyQt6.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QSplitter,
-    QStatusBar
+    QMainWindow, QWidget, QVBoxLayout, QSplitter, QStatusBar
 )
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 
 from src.ui.ui_components import UIComponents
 from src.ui.theme_colors import apply_theme_to_app
 
-# Импорт классов методов
-from src.ui.methods.connection import ConnectionMethods
-from src.ui.methods.data_loading import DataLoadingMethods
-
-
-class QTextEditLogHandler(logging.Handler):
-    """Обработчик логов, который записывает сообщения в QTextEdit."""
-    
-    def __init__(self, text_edit):
-        super().__init__()
-        self.text_edit = text_edit
-        # Устанавливаем формат, соответствующий настройкам basicConfig
-        self.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-    
-    def emit(self, record):
-        """Записывает запись лога в QTextEdit."""
-        try:
-            msg = self.format(record)
-            # Используем invokeMethod для потокобезопасного обновления UI
-            from PyQt6.QtCore import QMetaObject, Qt, Q_ARG, QThread
-            from PyQt6.QtWidgets import QApplication
-            # Проверяем, что text_edit существует
-            if self.text_edit is None:
-                return
-            app = QApplication.instance()
-            if app is None:
-                # Если приложение не существует, просто добавляем напрямую (редкий случай)
-                self.text_edit.append(msg)
-                return
-            # Если мы в главном потоке, можно вызывать напрямую
-            if QThread.currentThread() == app.thread():
-                self.text_edit.append(msg)
-            else:
-                QMetaObject.invokeMethod(self.text_edit, "append", Qt.ConnectionType.QueuedConnection, Q_ARG(str, msg))
-        except Exception as e:
-            # Логируем ошибку в консоль, чтобы не потерять
-            import sys, traceback
-            print(f"Ошибка в QTextEditLogHandler: {e}", file=sys.stderr)
-            traceback.print_exc()
-            self.handleError(record)
-from src.ui.methods.ui_state import UIStateMethods
-from src.ui.methods.event_handlers import EventHandlers
-from src.ui.methods.filtering import FilteringMethods
-from src.ui.methods.monitoring import MonitoringMethods
-from src.ui.methods.refresh_management import RefreshManagementMethods
-from src.ui.methods.help_methods import HelpMethods
+# Импорт классов операций (после рефакторинга)
+from src.core.connection import ConnectionMethods
+from src.operations.data_loading_ops import DataLoadingMethods
+from src.operations.ui_operations import UIOperations
+from src.operations.data_filtering_ops import DataFilteringOperations
+from src.operations.refresh_operations import RefreshOperations, ProgressManager
+from src.utils.log_handler import QTextEditLogHandler
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +44,7 @@ class PowerBIMonitorUI(QMainWindow):
         self.workspaces = []
         self.datasets = []
         self.auto_refresh_enabled = False  # Флаг автообновления
-        self.current_theme = "Светлая"  # Текущая тема по умолчанию
+        self.current_theme = "Светлая"  # Текущая тема интерфейса
         
         # Инициализация компонентов UI
         self.ui_components = UIComponents(self)
@@ -96,15 +56,13 @@ class PowerBIMonitorUI(QMainWindow):
         self.initialize_backend()
     
     def _init_method_classes(self):
-        """Инициализирует классы методов."""
+        """Инициализирует классы операций (после рефакторинга)."""
         self.connection_methods = ConnectionMethods(self)
         self.data_loading_methods = DataLoadingMethods(self)
-        self.ui_state_methods = UIStateMethods(self)
-        self.event_handlers = EventHandlers(self)
-        self.filtering_methods = FilteringMethods(self)
-        self.monitoring_methods = MonitoringMethods(self)
-        self.refresh_management_methods = RefreshManagementMethods(self)
-        self.help_methods = HelpMethods(self)
+        self.ui_operations = UIOperations(self)
+        self.data_filtering_operations = DataFilteringOperations(self)
+        self.refresh_operations = RefreshOperations(self)
+        self.progress_manager = ProgressManager(self)
     
     def init_ui(self):
         """Инициализация пользовательского интерфейса."""
@@ -118,86 +76,83 @@ class PowerBIMonitorUI(QMainWindow):
         # Основной макет
         main_layout = QVBoxLayout(central_widget)
         
-        # Панель инструментов удалена по требованию
-        # self.ui_components.create_toolbar()
+        # Панель с отдельными кнопками (вместо панели инструментов)
+        button_panel = self.ui_components.create_button_panel()
+        main_layout.addWidget(button_panel)
         
-        # Панель с кнопкой подключения, переключателем темы и справкой (справа вверху)
-        top_panel = QWidget()
-        top_layout = QHBoxLayout(top_panel)
-        
-        # Кнопка подключения (слева)
-        self.connect_btn = QPushButton("Подключить")
-        self.connect_btn.clicked.connect(self.connect_to_powerbi)
-        top_layout.addWidget(self.connect_btn)
-        
-        # Кнопка тестовых данных
-        self.test_data_btn = QPushButton("Тестовые данные")
-        self.test_data_btn.clicked.connect(self.data_loading_methods.load_test_data)
-        top_layout.addWidget(self.test_data_btn)
-        
-        top_layout.addStretch()
-        
-        # Кнопка переключения темы
-        self.theme_btn = QPushButton("Светлая/Тёмная")
-        self.theme_btn.clicked.connect(self.toggle_theme)
-        top_layout.addWidget(self.theme_btn)
-        
-        # Кнопка справки
-        self.help_btn = QPushButton("Справка")
-        self.help_btn.clicked.connect(self.help_methods.show_help)
-        top_layout.addWidget(self.help_btn)
-        
-        main_layout.addWidget(top_panel)
-        
-        # Основной вертикальный разделитель: сверху - контент, снизу - логи
-        main_splitter = QSplitter(Qt.Orientation.Vertical)
+        # Вертикальный разделитель для основной области и логов
+        vertical_splitter = QSplitter(Qt.Orientation.Vertical)
         
         # Горизонтальный разделитель для левой и центральной панели
-        content_splitter = QSplitter(Qt.Orientation.Horizontal)
+        horizontal_splitter = QSplitter(Qt.Orientation.Horizontal)
         
         # Левая панель (навигация)
         left_panel = self.ui_components.create_left_panel()
-        content_splitter.addWidget(left_panel)
+        horizontal_splitter.addWidget(left_panel)
         
         # Центральная панель (контент)
         center_panel = self.ui_components.create_center_panel()
-        content_splitter.addWidget(center_panel)
+        horizontal_splitter.addWidget(center_panel)
         
-        content_splitter.setSizes([300, 800])
-        main_splitter.addWidget(content_splitter)
+        # Правая панель удалена по требованию
+        # right_panel = self.ui_components.create_right_panel()
+        # horizontal_splitter.addWidget(right_panel)
         
-        # Панель логов (внизу)
+        horizontal_splitter.setSizes([300, 1100])
+        vertical_splitter.addWidget(horizontal_splitter)
+        
+        # Панель логов (нижний блок)
         logs_panel = self.ui_components.create_logs_panel()
-        main_splitter.addWidget(logs_panel)
+        vertical_splitter.addWidget(logs_panel)
         
-        # Добавляем обработчик логов в QTextEdit
-        if hasattr(self, 'logs_text'):
-            log_handler = QTextEditLogHandler(self.logs_text)
-            log_handler.setLevel(logging.INFO)
-            logging.getLogger().addHandler(log_handler)
-            # Убираем дублирование сообщений (если уже есть другие обработчики)
-            # Но оставляем FileHandler и StreamHandler
-            # Можно также установить уровень для корневого логгера, но он уже настроен
-        else:
-            logging.warning("logs_text не найден, обработчик логов не добавлен")
+        # Установим начальные размеры: 70% для основной области, 30% для логов
+        vertical_splitter.setSizes([600, 200])
         
-        main_splitter.setSizes([600, 200])
-        main_layout.addWidget(main_splitter)
+        main_layout.addWidget(vertical_splitter)
         
         # Статус бар
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
         self.status_bar.showMessage("Готов к работе")
         
-        # Прогресс-бар теперь находится во вкладке "Обзор" (см. ui_panels.create_overview_tab)
-        # self.progress_bar создаётся там
-        
         # Таймер для обновления данных (не запускается автоматически)
         self.update_timer = QTimer()
         self.update_timer.timeout.connect(self.refresh_data)
         # Таймер не запускается - будет запускаться только при включении мониторинга
+        
+        # Настройка обработчика логов для отображения в панели логов
+        self.setup_log_handler()
     
     # Делегирование методов классам методов
+    
+    def setup_log_handler(self):
+        """Настраивает обработчик логов для вывода в панель логов."""
+        # Убедимся, что logs_text существует
+        if not hasattr(self, 'logs_text'):
+            # logs_text создается в create_logs_panel, должен быть уже создан
+            logger.warning("logs_text не найден, обработчик логов не будет настроен.")
+            return
+        
+        if self.logs_text is None:
+            logger.warning("logs_text равен None, обработчик логов не будет настроен.")
+            return
+        
+        logger.info("Настройка обработчика логов для UI...")
+        
+        # Создаем обработчик и привязываем к logs_text
+        handler = QTextEditLogHandler(self.logs_text)
+        handler.setLevel(logging.INFO)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        handler.setFormatter(formatter)
+        
+        # Добавляем обработчик к корневому логгеру
+        root_logger = logging.getLogger()
+        root_logger.addHandler(handler)
+        
+        # Также добавим обработчик к логгеру этого модуля
+        logger.addHandler(handler)
+        
+        logger.info("Обработчик логов для UI настроен.")
     
     def initialize_backend(self):
         """Инициализация бэкенда приложения (без автоматического подключения)."""
@@ -210,6 +165,10 @@ class PowerBIMonitorUI(QMainWindow):
     def refresh_data(self):
         """Обновление данных."""
         return self.data_loading_methods.refresh_data()
+    
+    def load_test_data(self):
+        """Загружает тестовые данные (демо-режим) для скриншотов."""
+        return self.data_loading_methods.load_test_data()
     
     def load_workspaces(self):
         """Загружает список рабочих областей из Power BI."""
@@ -237,88 +196,276 @@ class PowerBIMonitorUI(QMainWindow):
     
     def update_ui_for_disconnected_state(self):
         """Обновляет UI для состояния 'не подключено'."""
-        return self.ui_state_methods.update_ui_for_disconnected_state()
+        return self.ui_operations.update_ui_for_disconnected_state()
     
     def update_ui_for_connected_state(self):
         """Обновляет UI для состояния 'подключено'."""
-        return self.ui_state_methods.update_ui_for_connected_state()
+        return self.ui_operations.update_ui_for_connected_state()
     
     def log_message(self, message: str):
         """Добавляет сообщение в лог."""
-        return self.ui_state_methods.log_message(message)
+        return self.ui_operations.log_message(message)
     
     def on_workspace_selected(self, index):
         """Обработчик выбора рабочей области."""
-        return self.event_handlers.on_workspace_selected(index)
+        return self.ui_operations.on_workspace_selected(index)
     
     def on_dataset_selected(self, item, column):
         """Обработчик выбора датасета."""
-        return self.event_handlers.on_dataset_selected(item, column)
+        return self.ui_operations.on_dataset_selected(item, column)
+    
+    def on_details_dataset_selected(self, index):
+        """Обработчик выбора датасета в комбобоксе на вкладке детали."""
+        if index < 0:
+            return
+        # Получаем выбранный датасет из комбобокса
+        dataset = self.details_dataset_combo.itemData(index)
+        if dataset:
+            self.current_dataset = dataset
+            # Пытаемся получить workspace из различных возможных ключей
+            self.current_workspace = (
+                dataset.get('workspaceId') or
+                dataset.get('workspace_id') or
+                dataset.get('workspace')
+            )
+            self.update_dataset_details(dataset)
+    
+    def update_details_dataset_combo(self, datasets):
+        """Обновляет комбобокс выбора датасета на вкладке детали."""
+        if not hasattr(self, 'details_dataset_combo'):
+            return
+        combo = self.details_dataset_combo
+        
+        # Запоминаем текущий выбранный датасет (если есть)
+        current_dataset_id = None
+        if self.current_dataset:
+            current_dataset_id = self.current_dataset.get('id')
+        
+        combo.clear()
+        found_index = -1
+        for idx, ds in enumerate(datasets):
+            name = ds.get('name', 'Без имени')
+            combo.addItem(name, ds)
+            # Если это текущий датасет, запоминаем индекс
+            if current_dataset_id and ds.get('id') == current_dataset_id:
+                found_index = idx
+                # Обновляем current_dataset на актуальный объект
+                self.current_dataset = ds
+        
+        # Добавляем пустой элемент placeholder
+        if combo.count() == 0:
+            combo.addItem("-- Нет датасетов --", None)
+        # Устанавливаем выбранный элемент, если нашли
+        elif found_index >= 0:
+            combo.setCurrentIndex(found_index)
+        # Иначе сбрасываем выбор
+        else:
+            combo.setCurrentIndex(-1)
     
     def on_dataset_double_clicked(self, item):
-        """Обработчик двойного клика по датасету."""
-        return self.event_handlers.on_dataset_double_clicked(item)
+        """Обработчик двойного клика по датасета."""
+        return self.ui_operations.on_dataset_double_clicked(item)
     
     def show_context_menu(self, position):
         """Показывает контекстное меню для таблицы датасетов."""
-        return self.event_handlers.show_context_menu(position)
+        return self.ui_operations.show_context_menu(position)
     
     def apply_filters(self):
         """Применяет фильтры к списку датасетов."""
-        return self.filtering_methods.apply_filters()
+        return self.data_filtering_operations.apply_filters()
     
     def start_monitoring(self):
         """Запускает мониторинг в реальном времени."""
-        return self.monitoring_methods.start_monitoring()
+        return self.data_filtering_operations.start_monitoring()
     
     def stop_monitoring(self):
         """Останавливает мониторинг в реальном времени."""
-        return self.monitoring_methods.stop_monitoring()
+        return self.data_filtering_operations.stop_monitoring()
     
     def enable_auto_refresh(self):
         """Включает автоматическое обновление для выбранного датасета."""
-        return self.refresh_management_methods.enable_auto_refresh()
+        return self.refresh_operations.enable_auto_refresh()
     
     def disable_auto_refresh(self):
         """Отключает автоматическое обновление для выбранного датасета."""
-        return self.refresh_management_methods.disable_auto_refresh()
+        return self.refresh_operations.disable_auto_refresh()
     
     def trigger_manual_refresh(self):
         """Запускает ручное обновление выбранного датасета."""
-        return self.refresh_management_methods.trigger_manual_refresh()
-    
-    def enable_auto_refresh_selected(self, datasets):
-        """Включает автоматическое обновление для выбранных датасетов."""
-        return self.refresh_management_methods.enable_auto_refresh_selected(datasets)
-    
-    def disable_auto_refresh_selected(self, datasets):
-        """Отключает автоматическое обновление для выбранных датасетов."""
-        return self.refresh_management_methods.disable_auto_refresh_selected(datasets)
-    
-    def trigger_manual_refresh_selected(self, datasets):
-        """Запускает ручное обновление для выбранных датасетов."""
-        return self.refresh_management_methods.trigger_manual_refresh_selected(datasets)
+        return self.refresh_operations.trigger_manual_refresh()
 
     def edit_refresh_schedule(self):
         """Диалог редактирования расписания обновления для выбранного датасета."""
-        return self.refresh_management_methods.edit_refresh_schedule()
+        return self.refresh_operations.edit_refresh_schedule()
 
-    def change_theme(self, theme_name):
-        """Изменяет тему интерфейса."""
-        # Сохраняем текущую тему
-        self.current_theme = theme_name
+    def show_help(self):
+        """Показывает справку."""
+        return self.ui_operations.show_help()
+
+    def toggle_debug_logging(self, state):
+        """
+        Включает/выключает сохранение сырых логов в каталог debug/.
         
-        # Применяем тему через модуль theme_colors
-        apply_theme_to_app(theme_name)
+        Args:
+            state: Состояние чекбокса (0 - выключено, 2 - включено)
+        """
+        debug_enabled = state == 2  # Qt.Checked == 2
+        debug_path = "debug" if debug_enabled else None
+        if hasattr(self, 'client') and self.client:
+            self.client.set_debug_path(debug_path)
+        self.log_message(f"Сохранение сырых логов {'включено' if debug_enabled else 'выключено'}")
+
+    def toggle_theme(self, state):
+        """
+        Переключает тему интерфейса между светлой и тёмной.
+
+        Args:
+            state: Состояние чекбокса (0 - выключено/светлая, 2 - включено/тёмная)
+        """
+        dark_enabled = state == 2  # Qt.Checked == 2
+        new_theme = "Тёмная" if dark_enabled else "Светлая"
+        self.current_theme = new_theme
+        apply_theme_to_app(new_theme)
+        self.log_message(f"Тема изменена на '{new_theme}'")
+
+    def toggle_schedule_group(self):
+        """Переключает видимость группы управления расписанием."""
+        if hasattr(self, 'schedule_group'):
+            self.schedule_group.setVisible(not self.schedule_group.isVisible())
+
+    def add_schedule_time(self):
+        """Добавляет время из выпадающих списков часов и минут в список."""
+        if not hasattr(self, 'schedule_hours_combo') or not hasattr(self, 'schedule_minutes_combo'):
+            return
+        hours = self.schedule_hours_combo.currentText()
+        minutes = self.schedule_minutes_combo.currentText()
+        time_text = f"{hours}:{minutes}"
+        self.schedule_times_list.addItem(time_text)
+
+    def remove_schedule_time(self):
+        """Удаляет выбранное время из списка."""
+        if not hasattr(self, 'schedule_times_list'):
+            return
+        selected = self.schedule_times_list.currentRow()
+        if selected >= 0:
+            self.schedule_times_list.takeItem(selected)
+
+    def save_schedule(self):
+        """Сохраняет расписание для выбранного датасета."""
+        if not self.current_dataset or not self.current_workspace:
+            self.log_message("Не выбран датасет или рабочая область")
+            return
+        # Сбор данных из UI
+        days = [api_name for api_name, cb in self.schedule_day_checks.items() if cb.isChecked()]
+        times = []
+        for i in range(self.schedule_times_list.count()):
+            times.append(self.schedule_times_list.item(i).text().strip())
+        local_time_zone_id = self.schedule_tz_combo.currentText().strip()
+        notify_option = self.schedule_notify_combo.currentData()
+        enabled = self.schedule_enabled_cb.isChecked()
         
-        # Обновляем статус бар для отображения текущей темы
-        self.status_bar.showMessage(f"Тема изменена на: {theme_name}", 3000)
-    
-    def toggle_theme(self):
-        """Переключает тему между светлой и тёмной."""
-        if self.current_theme == "Светлая":
-            new_theme = "Тёмная"
-        else:
-            new_theme = "Светлая"
-        self.change_theme(new_theme)
-    
+        payload = {
+            "enabled": enabled,
+            "days": days,
+            "times": times,
+            "localTimeZoneId": local_time_zone_id,
+            "notifyOption": notify_option,
+        }
+        
+        # Делегируем сохранение в refresh_operations
+        try:
+            dataset_id = self.current_dataset.get('id')
+            dataset_name = self.current_dataset.get('name', dataset_id)
+            self.log_message(f"Сохранение расписания для {dataset_name}...")
+            self.status_bar.showMessage("Сохранение расписания...")
+            self.refresh_operations.update_refresh_schedule(
+                self.current_workspace, dataset_id, payload
+            )
+            self.log_message("✓ Расписание сохранено")
+            self.status_bar.showMessage("Расписание сохранено", 3000)
+            self.refresh_data()
+        except Exception as e:
+            self.log_message(f"✗ Ошибка сохранения расписания: {e}")
+            self.status_bar.showMessage("Ошибка сохранения расписания", 5000)
+
+    def delete_schedule(self):
+        """Удаляет расписание для выбранного датасета."""
+        if not self.current_dataset or not self.current_workspace:
+            self.log_message("Не выбран датасет или рабочая область")
+            return
+        try:
+            dataset_id = self.current_dataset.get('id')
+            dataset_name = self.current_dataset.get('name', dataset_id)
+            self.log_message(f"Отключение расписания для {dataset_name}...")
+            self.status_bar.showMessage("Удаление расписания...")
+            self.refresh_operations.disable_auto_refresh(self.current_workspace, dataset_id)
+            self.log_message("✓ Запланированное обновление отключено")
+            self.status_bar.showMessage("Расписание отключено", 3000)
+            self.refresh_data()
+        except Exception as e:
+            self.log_message(f"✗ Ошибка удаления расписания: {e}")
+            self.status_bar.showMessage("Ошибка удаления расписания", 5000)
+
+    def load_schedule_to_ui(self, schedule_data: dict):
+        """
+        Загружает данные расписания в элементы управления UI.
+        
+        Args:
+            schedule_data: Словарь с данными расписания (ключи: enabled, days, times, localTimeZoneId, notifyOption)
+        """
+        if not schedule_data:
+            # Если расписание отсутствует, сбрасываем UI
+            self._clear_schedule_ui()
+            return
+        
+        # enabled
+        if hasattr(self, 'schedule_enabled_cb'):
+            self.schedule_enabled_cb.setChecked(schedule_data.get('enabled', False))
+        
+        # days
+        days = schedule_data.get('days', [])
+        if hasattr(self, 'schedule_day_checks'):
+            for api_name, cb in self.schedule_day_checks.items():
+                cb.setChecked(api_name in days)
+        
+        # times
+        times = schedule_data.get('times', [])
+        if hasattr(self, 'schedule_times_list'):
+            self.schedule_times_list.clear()
+            for time_str in times:
+                self.schedule_times_list.addItem(time_str)
+        
+        # localTimeZoneId
+        tz_id = schedule_data.get('localTimeZoneId', 'UTC')
+        if hasattr(self, 'schedule_tz_combo'):
+            index = self.schedule_tz_combo.findText(tz_id)
+            if index >= 0:
+                self.schedule_tz_combo.setCurrentIndex(index)
+            else:
+                # Если часовой пояс не найден, добавляем его
+                self.schedule_tz_combo.addItem(tz_id)
+                self.schedule_tz_combo.setCurrentIndex(self.schedule_tz_combo.count() - 1)
+        
+        # notifyOption
+        notify = schedule_data.get('notifyOption', 'MailOnFailure')
+        if hasattr(self, 'schedule_notify_combo'):
+            index = self.schedule_notify_combo.findData(notify)
+            if index >= 0:
+                self.schedule_notify_combo.setCurrentIndex(index)
+            else:
+                # Если опция не найдена, устанавливаем по умолчанию
+                self.schedule_notify_combo.setCurrentIndex(0)
+
+    def _clear_schedule_ui(self):
+        """Сбрасывает элементы управления расписанием в состояние по умолчанию."""
+        if hasattr(self, 'schedule_enabled_cb'):
+            self.schedule_enabled_cb.setChecked(False)
+        if hasattr(self, 'schedule_day_checks'):
+            for cb in self.schedule_day_checks.values():
+                cb.setChecked(False)
+        if hasattr(self, 'schedule_times_list'):
+            self.schedule_times_list.clear()
+        if hasattr(self, 'schedule_tz_combo'):
+            self.schedule_tz_combo.setCurrentIndex(0)
+        if hasattr(self, 'schedule_notify_combo'):
+            self.schedule_notify_combo.setCurrentIndex(0)

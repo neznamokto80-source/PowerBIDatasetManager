@@ -9,9 +9,9 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QComboBox,
     QGroupBox, QTreeWidget, QCheckBox, QTableWidget, QHeaderView,
     QAbstractItemView, QTabWidget, QTextEdit, QFormLayout,
-    QProgressBar
+    QProgressBar, QLineEdit, QListWidget, QGridLayout, QFrame
 )
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QFont
 
 from .widgets import (
@@ -60,20 +60,11 @@ class UIPanels:
         workspace_group = create_group_box("Рабочие области", workspace_layout)
         layout.addWidget(workspace_group)
         
-        # Группа "Датасеты"
-        dataset_layout = QVBoxLayout()
-        
-        self.main.dataset_tree = create_tree_widget(["Name", "Status", "Refresh"])
-        self.main.dataset_tree.itemClicked.connect(self.main.on_dataset_selected)
-        # Увеличиваем минимальную высоту дерева датасетов
-        self.main.dataset_tree.setMinimumHeight(300)
-        dataset_layout.addWidget(self.main.dataset_tree)
-        
-        refresh_datasets_btn = create_button("Обновить статусы", callback=self.main.load_datasets)
-        dataset_layout.addWidget(refresh_datasets_btn)
-        
-        dataset_group = create_group_box("Датасеты", dataset_layout)
-        layout.addWidget(dataset_group)
+        # Группа "Датасеты" удалена по требованию
+        # (выбор датасета теперь только через таблицу в центральной панели)
+        # Создаем дерево датасетов как заглушку (не отображается) для совместимости кода
+        self.main.dataset_tree = QTreeWidget()
+        self.main.dataset_tree.setHeaderLabels(["Название", "Статус", "Обновление"])
         
         # Группа "Фильтры"
         filter_layout = QVBoxLayout()
@@ -118,6 +109,22 @@ class UIPanels:
         monitor_group = create_group_box("Мониторинг (переодичность опроса 60 сек)", monitor_layout)
         layout.addWidget(monitor_group)
 
+        # Группа "Настройки"
+        settings_layout = QVBoxLayout()
+        
+        # Чекбокс темы
+        self.main.theme_checkbox = create_check_box("Тёмная тема")
+        self.main.theme_checkbox.stateChanged.connect(self.main.toggle_theme)
+        settings_layout.addWidget(self.main.theme_checkbox)
+        
+        # Чекбокс сырых логов
+        self.main.debug_checkbox = create_check_box("Сохранять сырые логи (debug)")
+        self.main.debug_checkbox.stateChanged.connect(self.main.toggle_debug_logging)
+        settings_layout.addWidget(self.main.debug_checkbox)
+        
+        settings_group = create_group_box("Настройки", settings_layout)
+        layout.addWidget(settings_group)
+
         layout.addStretch()
         return panel
         
@@ -141,7 +148,7 @@ class UIPanels:
         # history_tab = self.create_history_tab()
         # self.main.tab_widget.addTab(history_tab, "История")
         
-        # Вкладка "Логи" удалена - логи теперь отображаются в правой панели
+        # Вкладка "Логи" удалена - логи теперь в нижнем блоке
         # logs_tab = self.create_logs_tab()
         # self.main.tab_widget.addTab(logs_tab, "Логи")
         
@@ -171,6 +178,16 @@ class UIPanels:
         
         stats_group.setLayout(stats_layout)
         layout.addWidget(stats_group)
+        
+        # Фильтр по названию датасета
+        filter_layout = QHBoxLayout()
+        filter_label = QLabel("Фильтр по названию:")
+        self.main.dataset_name_filter = QLineEdit()
+        self.main.dataset_name_filter.setPlaceholderText("Введите часть названия...")
+        self.main.dataset_name_filter.textChanged.connect(self.main.apply_filters)
+        filter_layout.addWidget(filter_label)
+        filter_layout.addWidget(self.main.dataset_name_filter)
+        layout.addLayout(filter_layout)
         
         # Таблица датасетов
         self.main.dataset_table = QTableWidget()
@@ -216,69 +233,212 @@ class UIPanels:
         tab = QWidget()
         layout = QVBoxLayout(tab)
         
-        # Информация о выбранном датасете
-        self.main.details_group = QGroupBox("Информация о датасете")
-        details_layout = QFormLayout()
-        
-        self.main.detail_name = QLabel("-")
-        details_layout.addRow("Название:", self.main.detail_name)
-        
-        self.main.detail_id = QLabel("-")
-        details_layout.addRow("ID:", self.main.detail_id)
-        
-        self.main.detail_workspace = QLabel("-")
-        details_layout.addRow("Рабочая область:", self.main.detail_workspace)
-        
-        self.main.detail_refresh_status = QLabel("-")
-        details_layout.addRow("Статус обновления:", self.main.detail_refresh_status)
-        
-        self.main.detail_last_refresh = QLabel("-")
-        details_layout.addRow("Последнее обновление:", self.main.detail_last_refresh)
-        
-        self.main.detail_next_refresh = QLabel("-")
-        details_layout.addRow("Следующее обновление:", self.main.detail_next_refresh)
-        
-        self.main.detail_schedule = QLabel("-")
-        details_layout.addRow("Расписание:", self.main.detail_schedule)
-        
-        # Добавляем поле для статуса автоматического обновления
-        self.main.detail_auto_refresh = QLabel("-")
-        details_layout.addRow("Автообновление:", self.main.detail_auto_refresh)
-        
-        # Добавляем поле для деталей последнего обновления
-        self.main.detail_last_refresh_details = QLabel("-")
-        details_layout.addRow("Детали последнего обновления:", self.main.detail_last_refresh_details)
-        
-        self.main.details_group.setLayout(details_layout)
-        layout.addWidget(self.main.details_group)
+        # Фильтр выбора датасета с кнопками управления
+        filter_layout = QHBoxLayout()
+        filter_label = QLabel("Выберите датасет:")
+        self.main.details_dataset_combo = QComboBox()
+        self.main.details_dataset_combo.setPlaceholderText("-- Выберите датасет --")
+        self.main.details_dataset_combo.currentIndexChanged.connect(self.main.on_details_dataset_selected)
+        filter_layout.addWidget(filter_label)
+        filter_layout.addWidget(self.main.details_dataset_combo)
         
         # Кнопки управления
-        button_layout = QHBoxLayout()
-        
         self.main.enable_btn = QPushButton("Включить обновление")
         self.main.enable_btn.clicked.connect(self.main.enable_auto_refresh)
         self.main.enable_btn.setEnabled(False)
-        button_layout.addWidget(self.main.enable_btn)
+        filter_layout.addWidget(self.main.enable_btn)
         
         self.main.disable_btn = QPushButton("Отключить обновление")
         self.main.disable_btn.clicked.connect(self.main.disable_auto_refresh)
         self.main.disable_btn.setEnabled(False)
-        button_layout.addWidget(self.main.disable_btn)
+        filter_layout.addWidget(self.main.disable_btn)
         
         self.main.manual_refresh_btn = QPushButton("Запустить обновление")
         self.main.manual_refresh_btn.clicked.connect(self.main.trigger_manual_refresh)
         self.main.manual_refresh_btn.setEnabled(False)
-        button_layout.addWidget(self.main.manual_refresh_btn)
-
-        self.main.edit_schedule_btn = QPushButton("Расписание…")
-        self.main.edit_schedule_btn.setToolTip(
-            "Создать, изменить или удалить расписание обновления в Power BI"
-        )
-        self.main.edit_schedule_btn.clicked.connect(self.main.edit_refresh_schedule)
-        self.main.edit_schedule_btn.setEnabled(False)
-        button_layout.addWidget(self.main.edit_schedule_btn)
+        filter_layout.addWidget(self.main.manual_refresh_btn)
         
-        layout.addLayout(button_layout)
+        filter_layout.addStretch()
+        layout.addLayout(filter_layout)
+        
+        # Информация о выбранном датасете (два столбца)
+        self.main.details_group = QGroupBox("Информация о датасете")
+        details_layout = QHBoxLayout()
+        
+        # Левый столбец (основная информация)
+        left_form = QFormLayout()
+        self.main.detail_name = QLabel("-")
+        left_form.addRow("Название:", self.main.detail_name)
+        
+        self.main.detail_id = QLabel("-")
+        left_form.addRow("ID:", self.main.detail_id)
+        
+        self.main.detail_workspace = QLabel("-")
+        left_form.addRow("Рабочая область:", self.main.detail_workspace)
+        
+        self.main.detail_refresh_status = QLabel("-")
+        left_form.addRow("Статус обновления:", self.main.detail_refresh_status)
+        
+        self.main.detail_last_refresh = QLabel("-")
+        left_form.addRow("Последнее обновление:", self.main.detail_last_refresh)
+        
+        self.main.detail_next_refresh = QLabel("-")
+        left_form.addRow("Следующее обновление:", self.main.detail_next_refresh)
+        
+        # Правый столбец (дополнительная информация)
+        right_form = QFormLayout()
+        self.main.detail_schedule = QLabel("-")
+        right_form.addRow("Расписание:", self.main.detail_schedule)
+        
+        self.main.detail_auto_refresh = QLabel("-")
+        right_form.addRow("Автообновление:", self.main.detail_auto_refresh)
+        
+        self.main.detail_last_refresh_details = QLabel("-")
+        right_form.addRow("Детали последнего обновления:", self.main.detail_last_refresh_details)
+        
+        # Добавляем формы в горизонтальный layout
+        details_layout.addLayout(left_form)
+        
+        # Разделитель в виде вертикальной линии
+        separator = QFrame()
+        separator.setFrameShape(QFrame.Shape.VLine)
+        separator.setFrameShadow(QFrame.Shadow.Sunken)
+        separator.setLineWidth(1)
+        separator.setMidLineWidth(0)
+        separator.setFixedWidth(3)
+        details_layout.addWidget(separator)
+        
+        details_layout.addLayout(right_form)
+        # Удален addStretch, чтобы столбцы были одинаковой ширины
+        # Устанавливаем stretch factors: левый и правый layout растягиваются одинаково, разделитель фиксирован
+        details_layout.setStretch(0, 1)  # left_form
+        details_layout.setStretch(1, 0)  # separator (фиксированная ширина)
+        details_layout.setStretch(2, 1)  # right_form
+        
+        self.main.details_group.setLayout(details_layout)
+        layout.addWidget(self.main.details_group)
+        
+        
+        # Группа управления расписанием (теперь постоянно видима)
+        self.main.schedule_group = QGroupBox("Управление расписанием")
+        self.main.schedule_group.setVisible(True)
+        schedule_layout = QHBoxLayout()
+        
+        # Дни недели
+        days_group = QGroupBox("Дни недели")
+        days_layout = QGridLayout()
+        self.main.schedule_day_checks = {}
+        DAY_LABELS_RU = [
+            "Воскресенье", "Понедельник", "Вторник", "Среда",
+            "Четверг", "Пятница", "Суббота"
+        ]
+        DAY_NAMES_API = [
+            "Sunday", "Monday", "Tuesday", "Wednesday",
+            "Thursday", "Friday", "Saturday"
+        ]
+        # Размещаем в две колонки: 4 в первой, 3 во второй
+        for i, (api_name, ru) in enumerate(zip(DAY_NAMES_API, DAY_LABELS_RU)):
+            cb = QCheckBox(ru)
+            self.main.schedule_day_checks[api_name] = cb
+            row = i % 4  # 4 строки в первой колонке
+            col = 0 if i < 4 else 1
+            days_layout.addWidget(cb, row, col)
+        days_group.setLayout(days_layout)
+        schedule_layout.addWidget(days_group)
+        
+        # Время срабатывания
+        times_group = QGroupBox("Время срабатывания (локальное время выбранного пояса)")
+        times_layout = QHBoxLayout()  # Горизонтальный layout: список слева, управление справа
+        
+        # Список времени в две колонки
+        self.main.schedule_times_list = QListWidget()
+        self.main.schedule_times_list.setViewMode(QListWidget.ViewMode.IconMode)
+        self.main.schedule_times_list.setFlow(QListWidget.Flow.LeftToRight)
+        self.main.schedule_times_list.setWrapping(True)
+        self.main.schedule_times_list.setGridSize(QSize(80, 25))
+        self.main.schedule_times_list.setFixedHeight(180)  # 6 строк * 30 высота
+        times_layout.addWidget(self.main.schedule_times_list, 2)  # растягиваем
+        
+        # Панель управления временем справа
+        time_edit_panel = QWidget()
+        time_edit_layout = QVBoxLayout(time_edit_panel)
+        time_edit_layout.setContentsMargins(5, 5, 5, 5)
+        
+        # Часы и минуты
+        hours_minutes_layout = QHBoxLayout()
+        hours_minutes_layout.addWidget(QLabel("Часы:"))
+        self.main.schedule_hours_combo = QComboBox()
+        self.main.schedule_hours_combo.addItems([f"{i:02d}" for i in range(24)])  # 00-23
+        hours_minutes_layout.addWidget(self.main.schedule_hours_combo)
+        hours_minutes_layout.addWidget(QLabel("Минуты:"))
+        self.main.schedule_minutes_combo = QComboBox()
+        self.main.schedule_minutes_combo.addItems([f"{i:02d}" for i in range(0, 60, 5)])  # 00,05,10,...,55
+        hours_minutes_layout.addWidget(self.main.schedule_minutes_combo)
+        time_edit_layout.addLayout(hours_minutes_layout)
+        
+        # Кнопки
+        self.main.schedule_add_time_btn = QPushButton("Добавить время")
+        self.main.schedule_add_time_btn.clicked.connect(self.main.add_schedule_time)
+        time_edit_layout.addWidget(self.main.schedule_add_time_btn)
+        
+        self.main.schedule_remove_time_btn = QPushButton("Удалить выбранное")
+        self.main.schedule_remove_time_btn.clicked.connect(self.main.remove_schedule_time)
+        time_edit_layout.addWidget(self.main.schedule_remove_time_btn)
+        
+        time_edit_layout.addStretch()
+        times_layout.addWidget(time_edit_panel, 1)
+        
+        times_group.setLayout(times_layout)
+        schedule_layout.addWidget(times_group)
+        
+        # Настройки расписания (часовой пояс, уведомления, кнопки)
+        settings_group = QGroupBox("Настройки расписания")
+        settings_layout = QVBoxLayout()
+        
+        # Часовой пояс и уведомления
+        form_layout = QFormLayout()
+        self.main.schedule_tz_combo = QComboBox()
+        self.main.schedule_tz_combo.setEditable(True)
+        DEFAULT_TIMEZONES = [
+            "UTC", "Russian Standard Time", "Central Asia Standard Time",
+            "Ekaterinburg Standard Time", "W. Europe Standard Time",
+            "Central European Standard Time", "GMT Standard Time",
+            "Eastern Standard Time", "Pacific Standard Time"
+        ]
+        self.main.schedule_tz_combo.addItems(DEFAULT_TIMEZONES)
+        self.main.schedule_tz_combo.setCurrentText("Central Asia Standard Time")
+        form_layout.addRow("Часовой пояс (Windows):", self.main.schedule_tz_combo)
+        
+        self.main.schedule_notify_combo = QComboBox()
+        self.main.schedule_notify_combo.addItem("Без уведомлений", "NoNotification")
+        self.main.schedule_notify_combo.addItem("Почта при ошибке", "MailOnFailure")
+        self.main.schedule_notify_combo.addItem("Почта по завершении", "MailOnCompletion")
+        self.main.schedule_notify_combo.setCurrentIndex(1)  # MailOnFailure по умолчанию
+        form_layout.addRow("Уведомления:", self.main.schedule_notify_combo)
+        
+        self.main.schedule_enabled_cb = QCheckBox("Расписание включено")
+        self.main.schedule_enabled_cb.setChecked(True)
+        form_layout.addRow(self.main.schedule_enabled_cb)
+        
+        settings_layout.addLayout(form_layout)
+        settings_layout.addStretch()
+        
+        # Кнопки сохранения/удаления
+        schedule_buttons_layout = QHBoxLayout()
+        self.main.schedule_save_btn = QPushButton("Сохранить расписание")
+        self.main.schedule_save_btn.clicked.connect(self.main.save_schedule)
+        self.main.schedule_delete_btn = QPushButton("Удалить расписание")
+        self.main.schedule_delete_btn.clicked.connect(self.main.delete_schedule)
+        schedule_buttons_layout.addWidget(self.main.schedule_save_btn)
+        schedule_buttons_layout.addWidget(self.main.schedule_delete_btn)
+        schedule_buttons_layout.addStretch()
+        settings_layout.addLayout(schedule_buttons_layout)
+        
+        settings_group.setLayout(settings_layout)
+        schedule_layout.addWidget(settings_group)
+        
+        self.main.schedule_group.setLayout(schedule_layout)
+        layout.addWidget(self.main.schedule_group)
         
         layout.addStretch()
         return tab
