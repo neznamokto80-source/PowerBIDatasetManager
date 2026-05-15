@@ -10,15 +10,15 @@ from datetime import datetime, timedelta
 from PyQt6.QtWidgets import QTableWidgetItem, QTreeWidgetItem
 from PyQt6.QtGui import QBrush
 
-from .progress_manager import ProgressManager
-from .base_methods import BaseMethods
+from src.operations.refresh_operations import ProgressManager
+from src.operations.base_operations import BaseOperations
 from src.ui.theme_colors import ThemeColors
 from src.core.data_provider import get_data_provider
 
 logger = logging.getLogger(__name__)
 
 
-class DataLoadingMethods(BaseMethods):
+class DataLoadingMethods(BaseOperations):
     """Методы для загрузки данных из Power BI."""
     
     def __init__(self, main_window):
@@ -303,6 +303,9 @@ class DataLoadingMethods(BaseMethods):
                     item = self.main_window.dataset_table.item(row, col)
                     if item:
                         item.setBackground(brush)
+        
+        # Обновляем комбобокс выбора датасета на вкладке детали
+        self.main_window.update_details_dataset_combo(datasets)
     
     def update_stats(self, datasets):
         """Обновляет статистику."""
@@ -469,3 +472,8 @@ class DataLoadingMethods(BaseMethods):
         self.main_window.manual_refresh_btn.setEnabled(is_refreshable)
         if hasattr(self.main_window, 'edit_schedule_btn'):
             self.main_window.edit_schedule_btn.setEnabled(True)
+        
+        # Загружаем расписание в UI элементы управления (если они существуют)
+        refresh_schedule = dataset.get('refresh_schedule', {})
+        if hasattr(self.main_window, 'load_schedule_to_ui'):
+            self.main_window.load_schedule_to_ui(refresh_schedule)

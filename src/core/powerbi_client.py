@@ -371,6 +371,17 @@ class PowerBIClient:
         """Возвращает метод аутентификации, который был использован."""
         return self._auth_method
 
+    def set_debug_path(self, debug_data_path: Optional[str]) -> None:
+        """
+        Устанавливает путь для сохранения сырых данных отладки.
+        
+        Args:
+            debug_data_path: Путь к директории или None для отключения
+        """
+        self.debug_data_path = debug_data_path
+        if self.debug_data_path:
+            os.makedirs(self.debug_data_path, exist_ok=True)
+
 
 class AuthenticationError(Exception):
     """Исключение для ошибок аутентификации."""

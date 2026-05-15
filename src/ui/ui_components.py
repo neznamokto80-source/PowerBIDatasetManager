@@ -31,6 +31,10 @@ class UIComponents:
         """Создает панель инструментов."""
         return self.toolbars.create_toolbar()
     
+    def create_button_panel(self):
+        """Создает панель с отдельными кнопками."""
+        return self.toolbars.create_button_panel()
+    
     def create_left_panel(self):
         """Создает левую панель навигации."""
         return self.panels.create_left_panel()

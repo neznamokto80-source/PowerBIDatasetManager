@@ -13,6 +13,7 @@ from typing import List, Dict, Any
 from enum import Enum
 
 from src.core.connection_manager import get_connection_manager
+from src.test_data.mock_connections import get_demo_datasets as get_mock_demo_datasets
 
 
 class DatasetStatus(Enum):
@@ -229,6 +230,7 @@ class DataProvider:
     def _generate_demo_datasets(self, workspace: str) -> List[Dict[str, Any]]:
         """
         Генерирует фиксированные демо-данные для скриншотов.
+        Использует тестовые данные из src/test_data/mock_connections.py.
         
         Args:
             workspace: Название рабочей области
@@ -236,171 +238,49 @@ class DataProvider:
         Returns:
             Список словарей с информацией о датасетах
         """
-        # Если рабочая область не DefaultWorkspace, возвращаем пустой список
-        if workspace != "DefaultWorkspace":
-            return []
+        # Получаем демо-датасеты из модуля тестовых данных
+        demo_datasets = get_mock_demo_datasets(workspace)
         
-        from datetime import datetime, timedelta
-        
-        # Фиксированные датасеты
-        demo_datasets = [
-            {
-                "id": "dataset-default-001",
-                "name": "Sales Dashboard",
-                "status": "Активен",
-                "status_raw": DatasetStatus.ACTIVE,
-                "last_update": datetime.now() - timedelta(hours=2),
-                "last_update_str": (datetime.now() - timedelta(hours=2)).strftime("%Y-%m-%d %H:%M"),
-                "lastRefreshTime": (datetime.now() - timedelta(hours=2)).strftime("%Y-%m-%d %H:%M"),
-                "auto_refresh": "Вкл",
-                "auto_refresh_raw": AutoRefreshStatus.ENABLED,
-                "auto_refresh_enabled": True,
-                "refresh_schedule": {
-                    "enabled": True,
-                    "times": ["09:00", "18:00"],
-                    "days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
-                },
-                "isRefreshable": True,
-                "nextRefreshTime": "",
-                "description": "Основной дашборд продаж с детализацией по регионам",
-                "size_mb": 250,
-                "workspace": workspace,
-                "row_count": 50000,
-                "refresh_interval_hours": 12,
-                "has_errors": False,
-                "selected": False
-            },
-            {
-                "id": "dataset-default-002",
-                "name": "Financial Reports",
-                "status": "Активен",
-                "status_raw": DatasetStatus.ACTIVE,
-                "last_update": datetime.now() - timedelta(days=1),
-                "last_update_str": (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d %H:%M"),
-                "lastRefreshTime": (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d %H:%M"),
-                "auto_refresh": "Вкл",
-                "auto_refresh_raw": AutoRefreshStatus.ENABLED,
-                "auto_refresh_enabled": True,
-                "refresh_schedule": {
-                    "enabled": True,
-                    "times": [],
-                    "days": []
-                },
-                "isRefreshable": True,
-                "nextRefreshTime": "",
-                "description": "Финансовая отчетность и анализ прибыльности",
-                "size_mb": 180,
-                "workspace": workspace,
-                "row_count": 30000,
-                "refresh_interval_hours": 24,
-                "has_errors": False,
-                "selected": False
-            },
-            {
-                "id": "dataset-default-003",
-                "name": "Marketing Analytics",
-                "status": "Активен",
-                "status_raw": DatasetStatus.ACTIVE,
-                "last_update": datetime.now() - timedelta(days=3),
-                "last_update_str": (datetime.now() - timedelta(days=3)).strftime("%Y-%m-%d %H:%M"),
-                "lastRefreshTime": (datetime.now() - timedelta(days=3)).strftime("%Y-%m-%d %H:%M"),
-                "auto_refresh": "Выкл",
-                "auto_refresh_raw": AutoRefreshStatus.DISABLED,
-                "auto_refresh_enabled": False,
-                "refresh_schedule": {
-                    "enabled": False,
-                    "times": [],
-                    "days": []
-                },
-                "isRefreshable": False,
-                "nextRefreshTime": "",
-                "description": "Аналитика маркетинговых кампаний и ROI",
-                "size_mb": 320,
-                "workspace": workspace,
-                "row_count": 75000,
-                "refresh_interval_hours": 6,
-                "has_errors": False,
-                "selected": False
-            },
-            {
-                "id": "dataset-default-004",
-                "name": "Customer Insights",
-                "status": "Неактивен",
-                "status_raw": DatasetStatus.INACTIVE,
-                "last_update": datetime.now() - timedelta(days=10),
-                "last_update_str": (datetime.now() - timedelta(days=10)).strftime("%Y-%m-%d %H:%M"),
-                "lastRefreshTime": (datetime.now() - timedelta(days=10)).strftime("%Y-%m-%d %H:%M"),
-                "auto_refresh": "Выкл",
-                "auto_refresh_raw": AutoRefreshStatus.DISABLED,
-                "auto_refresh_enabled": False,
-                "refresh_schedule": {
-                    "enabled": False,
-                    "times": [],
-                    "days": []
-                },
-                "isRefreshable": False,
-                "nextRefreshTime": "",
-                "description": "Инсайты по клиентскому поведению и удержанию",
-                "size_mb": 150,
-                "workspace": workspace,
-                "row_count": 20000,
-                "refresh_interval_hours": 1,
-                "has_errors": False,
-                "selected": False
-            },
-            {
-                "id": "dataset-default-005",
-                "name": "Inventory Management",
-                "status": "Ошибка",
-                "status_raw": DatasetStatus.ERROR,
-                "last_update": datetime.now() - timedelta(days=5),
-                "last_update_str": (datetime.now() - timedelta(days=5)).strftime("%Y-%m-%d %H:%M"),
-                "lastRefreshTime": (datetime.now() - timedelta(days=5)).strftime("%Y-%m-%d %H:%M"),
-                "auto_refresh": "Выкл",
-                "auto_refresh_raw": AutoRefreshStatus.DISABLED,
-                "auto_refresh_enabled": False,
-                "refresh_schedule": {
-                    "enabled": False,
-                    "times": [],
-                    "days": []
-                },
-                "isRefreshable": False,
-                "nextRefreshTime": "",
-                "description": "Управление запасами и оптимизация складских остатков",
-                "size_mb": 450,
-                "workspace": workspace,
-                "row_count": 100000,
-                "refresh_interval_hours": 2,
-                "has_errors": True,
-                "selected": False
-            },
-            {
-                "id": "dataset-default-006",
-                "name": "HR Analytics",
-                "status": "Активен",
-                "status_raw": DatasetStatus.ACTIVE,
-                "last_update": datetime.now() - timedelta(hours=12),
-                "last_update_str": (datetime.now() - timedelta(hours=12)).strftime("%Y-%m-%d %H:%M"),
-                "lastRefreshTime": (datetime.now() - timedelta(hours=12)).strftime("%Y-%m-%d %H:%M"),
-                "auto_refresh": "Вкл",
-                "auto_refresh_raw": AutoRefreshStatus.ENABLED,
-                "auto_refresh_enabled": True,
-                "refresh_schedule": {
-                    "enabled": True,
-                    "times": ["08:00", "20:00"],
-                    "days": ["Monday", "Wednesday", "Friday"]
-                },
-                "isRefreshable": True,
-                "nextRefreshTime": "",
-                "description": "Аналитика персонала и эффективности сотрудников",
-                "size_mb": 120,
-                "workspace": workspace,
-                "row_count": 25000,
-                "refresh_interval_hours": 12,
-                "has_errors": False,
-                "selected": False
-            }
-        ]
+        # Добавляем поля status_raw и auto_refresh_raw на основе строковых значений
+        for ds in demo_datasets:
+            # Преобразование статуса
+            status = ds.get('status', 'Активен')
+            if status == 'Активен':
+                ds['status_raw'] = DatasetStatus.ACTIVE
+            elif status == 'Неактивен':
+                ds['status_raw'] = DatasetStatus.INACTIVE
+            elif status == 'Ошибка':
+                ds['status_raw'] = DatasetStatus.ERROR
+            elif status == 'В обработке':
+                ds['status_raw'] = DatasetStatus.PROCESSING
+            else:
+                ds['status_raw'] = DatasetStatus.ACTIVE
+            
+            # Преобразование автообновления
+            auto_refresh = ds.get('auto_refresh', 'Выкл')
+            if auto_refresh == 'Вкл':
+                ds['auto_refresh_raw'] = AutoRefreshStatus.ENABLED
+            elif auto_refresh == 'Выкл':
+                ds['auto_refresh_raw'] = AutoRefreshStatus.DISABLED
+            elif auto_refresh == 'По расписанию':
+                ds['auto_refresh_raw'] = AutoRefreshStatus.SCHEDULED
+            else:
+                ds['auto_refresh_raw'] = AutoRefreshStatus.DISABLED
+            
+            # Убедимся, что поле last_update существует (если нет, создаем из lastRefreshTime)
+            if 'last_update' not in ds:
+                # Парсим строку lastRefreshTime или используем текущее время
+                from datetime import datetime
+                last_refresh_str = ds.get('lastRefreshTime', '')
+                if last_refresh_str:
+                    try:
+                        # Предполагаем формат "%Y-%m-%d %H:%M"
+                        ds['last_update'] = datetime.strptime(last_refresh_str, "%Y-%m-%d %H:%M")
+                    except ValueError:
+                        ds['last_update'] = datetime.now()
+                else:
+                    ds['last_update'] = datetime.now()
+                ds['last_update_str'] = ds['last_update'].strftime("%Y-%m-%d %H:%M")
         
         # Сортируем по имени
         demo_datasets.sort(key=lambda x: x["name"])

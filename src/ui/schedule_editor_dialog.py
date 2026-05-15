@@ -101,13 +101,22 @@ class ScheduleEditorDialog(QDialog):
         if self._times_list.count() == 0:
             self._times_list.addItem("03:00")
         times_row = QHBoxLayout()
-        self._time_edit = QLineEdit()
-        self._time_edit.setPlaceholderText("ЧЧ:ММ, например 08:30")
+        # Выпадающие списки для часов и минут
+        self._hours_combo = QComboBox()
+        self._hours_combo.addItems([f"{i:02d}" for i in range(24)])  # 00-23
+        self._minutes_combo = QComboBox()
+        self._minutes_combo.addItems([f"{i:02d}" for i in range(0, 60, 5)])  # 00,05,10,...,55
+        # Установить значения по умолчанию 03:00
+        self._hours_combo.setCurrentText("03")
+        self._minutes_combo.setCurrentText("00")
         add_btn = QPushButton("Добавить время")
         add_btn.clicked.connect(self._add_time)
         rem_btn = QPushButton("Удалить выбранное")
         rem_btn.clicked.connect(self._remove_time)
-        times_row.addWidget(self._time_edit)
+        times_row.addWidget(QLabel("Часы:"))
+        times_row.addWidget(self._hours_combo)
+        times_row.addWidget(QLabel("Минуты:"))
+        times_row.addWidget(self._minutes_combo)
         times_row.addWidget(add_btn)
         times_row.addWidget(rem_btn)
         times_layout.addWidget(self._times_list)
@@ -192,18 +201,13 @@ class ScheduleEditorDialog(QDialog):
         }
 
     def _add_time(self) -> None:
-        raw = self._time_edit.text().strip()
-        if not raw:
-            return
-        if not TIME_PATTERN.match(raw):
-            QMessageBox.warning(
-                self,
-                "Неверный формат",
-                "Введите время в формате ЧЧ:ММ (00:00–23:59).",
-            )
-            return
-        self._times_list.addItem(raw)
-        self._time_edit.clear()
+        hours = self._hours_combo.currentText()
+        minutes = self._minutes_combo.currentText()
+        time_text = f"{hours}:{minutes}"
+        self._times_list.addItem(time_text)
+        # Сбросить на значения по умолчанию (03:00)
+        self._hours_combo.setCurrentText("03")
+        self._minutes_combo.setCurrentText("00")
 
     def _remove_time(self) -> None:
         row = self._times_list.currentRow()

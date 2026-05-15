@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Методы фильтрации датасетов.
+Операции фильтрации и мониторинга датасетов.
+Объединяет функционал из filtering.py и monitoring.py.
 """
 
 import logging
@@ -10,24 +11,24 @@ from PyQt6.QtWidgets import QTreeWidgetItem
 from PyQt6.QtGui import QBrush
 
 from src.ui.theme_colors import ThemeColors
-from .base_methods import BaseMethods
+from src.operations.base_operations import BaseOperations
 
 logger = logging.getLogger(__name__)
 
 
-class FilteringMethods(BaseMethods):
-    """Методы для фильтрации датасетов."""
+class DataFilteringOperations(BaseOperations):
+    """Операции для фильтрации и мониторинга датасетов."""
     
     def __init__(self, main_window):
         """
-        Инициализирует методы фильтрации.
+        Инициализирует операции фильтрации и мониторинга.
         
         Args:
             main_window: Экземпляр главного окна (PowerBIMonitorUI)
         """
         super().__init__(main_window)
     
-    # Вспомогательные функции для работы со временем унаследованы от BaseMethods
+    # ========== Методы фильтрации ==========
     
     def apply_filters(self):
         """Применяет фильтры к списку датасетов."""
@@ -71,6 +72,14 @@ class FilteringMethods(BaseMethods):
                 if 'in progress' not in status and 'refreshing' not in status:
                     include = False
             
+            # Фильтр по названию датасета (текстовый фильтр)
+            if hasattr(self.main_window, 'dataset_name_filter') and self.main_window.dataset_name_filter:
+                filter_text = self.main_window.dataset_name_filter.text().strip().lower()
+                if filter_text:
+                    dataset_name = ds.get('name', '').lower()
+                    if filter_text not in dataset_name:
+                        include = False
+            
             if include:
                 filtered_datasets.append(ds)
         
@@ -96,3 +105,50 @@ class FilteringMethods(BaseMethods):
             self.main_window.dataset_tree.addTopLevelItem(item)
         
         self.main_window.log_message(f"Применены фильтры. Показано датасетов: {len(filtered_datasets)}")
+    
+    # ========== Методы мониторинга ==========
+    
+    def start_monitoring(self):
+        """Запускает мониторинг в реальном времени."""
+        if self.main_window.auto_refresh_enabled:
+            self.main_window.log_message("Мониторинг уже запущен")
+            return
+        
+        try:
+            # Запускаем таймер с интервалом 60 секунд (можно настроить)
+            interval = 60000  # 60 секунд в миллисекундах
+            self.main_window.update_timer.start(interval)
+            self.main_window.auto_refresh_enabled = True
+            
+            # Обновляем UI
+            self.main_window.start_monitor_btn.setEnabled(False)
+            self.main_window.stop_monitor_btn.setEnabled(True)
+            self.main_window.status_bar.showMessage("Мониторинг запущен", 3000)
+            self.main_window.log_message(f"✓ Мониторинг запущен (интервал: {interval//1000} сек)")
+            
+            # Сразу обновляем данные
+            self.main_window.refresh_data()
+            
+        except Exception as e:
+            self.main_window.log_message(f"✗ Ошибка запуска мониторинга: {e}")
+            self.main_window.status_bar.showMessage("Ошибка запуска мониторинга", 5000)
+    
+    def stop_monitoring(self):
+        """Останавливает мониторинг в реальном времени."""
+        if not self.main_window.auto_refresh_enabled:
+            self.main_window.log_message("Мониторинг не запущен")
+            return
+        
+        try:
+            self.main_window.update_timer.stop()
+            self.main_window.auto_refresh_enabled = False
+            
+            # Обновляем UI
+            self.main_window.start_monitor_btn.setEnabled(True)
+            self.main_window.stop_monitor_btn.setEnabled(False)
+            self.main_window.status_bar.showMessage("Мониторинг остановлен", 3000)
+            self.main_window.log_message("✓ Мониторинг остановлен")
+            
+        except Exception as e:
+            self.main_window.log_message(f"✗ Ошибка остановки мониторинга: {e}")
+            self.main_window.status_bar.showMessage("Ошибка остановки мониторинга", 5000)
