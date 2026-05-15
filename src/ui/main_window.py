@@ -299,6 +299,10 @@ class PowerBIMonitorUI(QMainWindow):
         """Запускает ручное обновление для выбранных датасетов."""
         return self.refresh_management_methods.trigger_manual_refresh_selected(datasets)
 
+    def edit_refresh_schedule(self):
+        """Диалог редактирования расписания обновления для выбранного датасета."""
+        return self.refresh_management_methods.edit_refresh_schedule()
+
     def change_theme(self, theme_name):
         """Изменяет тему интерфейса."""
         # Сохраняем текущую тему

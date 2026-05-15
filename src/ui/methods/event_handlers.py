@@ -65,6 +65,8 @@ class EventHandlers:
             self.main_window.enable_btn.setEnabled(True)
             self.main_window.disable_btn.setEnabled(True)
             self.main_window.manual_refresh_btn.setEnabled(True)
+            if hasattr(self.main_window, 'edit_schedule_btn'):
+                self.main_window.edit_schedule_btn.setEnabled(True)
         else:
             self.main_window.log_message(f"Датасет {dataset_name} не найден в списке")
     
@@ -123,68 +125,9 @@ class EventHandlers:
             workspace_name = self.main_window.get_workspace_name(workspace_id)
             status = dataset.get('status', 'unknown')
             last_refresh = dataset.get('lastRefreshTime', 'никогда')
-            next_refresh = dataset.get('nextRefreshTime', 'не запланировано')
-            
-            # Получаем информацию о расписании
-            refresh_schedule = dataset.get('refresh_schedule', {})
-            schedule_text = 'не настроено'
-            auto_refresh_status = 'Неизвестно'
-            enabled = None
-            
-            if isinstance(refresh_schedule, dict) and refresh_schedule:
-                enabled = refresh_schedule.get('enabled')
-                if enabled is True:
-                    auto_refresh_status = 'Включено'
-                elif enabled is False:
-                    auto_refresh_status = 'Выключено'
-                else:
-                    auto_refresh_status = 'Настроено (статус неизвестен)'
-                
-                # Формируем текст расписания
-                days = refresh_schedule.get('days', [])
-                times = refresh_schedule.get('times', [])
-                timezone = refresh_schedule.get('localTimeZoneId', '')
-                
-                if days and times:
-                    days_str = ', '.join(days) if isinstance(days, list) else str(days)
-                    times_str = ', '.join(times) if isinstance(times, list) else str(times)
-                    schedule_text = f'Дни: {days_str}\nВремя: {times_str}'
-                    if timezone:
-                        schedule_text += f'\nЧасовой пояс: {timezone}'
-                    if enabled is not None:
-                        schedule_text += f'\nСтатус: {"Включено" if enabled else "Выключено"}'
-                    
-                    # Конвертируем времена расписания из UTC+6 в UTC+5 (Екатеринбург)
-                    # Предполагаем, что timezone = "Central Asia Standard Time" (UTC+6)
-                    # Пользовательский часовой пояс: Екатеринбург (UTC+5)
-                    from_offset = 6  # UTC+6
-                    to_offset = 5    # UTC+5
-                    try:
-                        schedule_times_local = self.main_window.data_loading_methods._convert_schedule_times(times, from_offset, to_offset)
-                        schedule_text += f'\nВремя (Екатеринбург): {", ".join(schedule_times_local)}'
-                    except Exception:
-                        pass
-                else:
-                    schedule_text = 'расписание не настроено'
-            else:
-                auto_refresh_status = 'Не настроено'
-            
-            # Если автообновление выключено, следующее обновление = N/A
-            if enabled is False:
-                next_refresh = "N/A"
-            elif enabled is True and 'times' in refresh_schedule:
-                times = refresh_schedule.get('times', [])
-                if times:
-                    from_offset = 6
-                    to_offset = 5
-                    try:
-                        schedule_times_local = self.main_window.data_loading_methods._convert_schedule_times(times, from_offset, to_offset)
-                        current_time = datetime.now()
-                        next_refresh_dt = self.main_window.data_loading_methods._calculate_next_refresh(schedule_times_local, current_time)
-                        if next_refresh_dt:
-                            next_refresh = self.main_window.data_loading_methods._format_datetime_for_display(next_refresh_dt)
-                    except Exception:
-                        pass
+            schedule_text, auto_refresh_status, next_refresh, enabled = (
+                self.main_window.data_loading_methods.get_schedule_display_for_dataset(dataset)
+            )
             
             # Получаем информацию о последнем обновлении
             last_refresh_info = dataset.get('last_refresh', {})
@@ -257,6 +200,42 @@ class EventHandlers:
             manual_refresh_btn.clicked.connect(self.main_window.trigger_manual_refresh)
             manual_refresh_btn.setEnabled(dataset.get('isRefreshable', False))
             button_layout.addWidget(manual_refresh_btn)
+
+            def refresh_dialog_schedule_block():
+                did = dataset.get('id')
+                fresh = None
+                for d in self.main_window.datasets or []:
+                    if d.get('id') == did:
+                        fresh = d
+                        break
+                if not fresh:
+                    return
+                sch, auto, nxt, en = (
+                    self.main_window.data_loading_methods.get_schedule_display_for_dataset(fresh)
+                )
+                detail_schedule.setText(sch)
+                detail_auto_refresh.setText(auto)
+                detail_next_refresh.setText(nxt)
+                enable_btn.setEnabled(en is not True)
+                disable_btn.setEnabled(en is True)
+
+            def on_edit_schedule_clicked():
+                ws_id = (
+                    dataset.get('workspaceId')
+                    or dataset.get('workspace_id')
+                    or self.main_window.current_workspace
+                )
+                ok = self.main_window.refresh_management_methods.edit_refresh_schedule(
+                    dataset=dataset,
+                    workspace_id=ws_id,
+                )
+                if ok:
+                    refresh_dialog_schedule_block()
+
+            schedule_btn = QPushButton("Расписание…")
+            schedule_btn.setToolTip("Создать, изменить или удалить расписание в Power BI")
+            schedule_btn.clicked.connect(on_edit_schedule_clicked)
+            button_layout.addWidget(schedule_btn)
             
             main_layout.addLayout(button_layout)
             

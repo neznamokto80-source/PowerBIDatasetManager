@@ -269,6 +269,14 @@ class UIPanels:
         self.main.manual_refresh_btn.clicked.connect(self.main.trigger_manual_refresh)
         self.main.manual_refresh_btn.setEnabled(False)
         button_layout.addWidget(self.main.manual_refresh_btn)
+
+        self.main.edit_schedule_btn = QPushButton("Расписание…")
+        self.main.edit_schedule_btn.setToolTip(
+            "Создать, изменить или удалить расписание обновления в Power BI"
+        )
+        self.main.edit_schedule_btn.clicked.connect(self.main.edit_refresh_schedule)
+        self.main.edit_schedule_btn.setEnabled(False)
+        button_layout.addWidget(self.main.edit_schedule_btn)
         
         layout.addLayout(button_layout)
         

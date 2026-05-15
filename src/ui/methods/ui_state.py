@@ -53,6 +53,8 @@ class UIStateMethods:
         self.main_window.enable_btn.setEnabled(False)
         self.main_window.disable_btn.setEnabled(False)
         self.main_window.manual_refresh_btn.setEnabled(False)
+        if hasattr(self.main_window, 'edit_schedule_btn'):
+            self.main_window.edit_schedule_btn.setEnabled(False)
         
         # Отключаем фильтры
         self.main_window.filter_enabled.setEnabled(False)
@@ -93,8 +95,8 @@ class UIStateMethods:
         self.main_window.enable_btn.setEnabled(False)
         self.main_window.disable_btn.setEnabled(False)
         self.main_window.manual_refresh_btn.setEnabled(False)
-        
-        # Включаем мониторинг
+        if hasattr(self.main_window, 'edit_schedule_btn'):
+            self.main_window.edit_schedule_btn.setEnabled(False)
         self.main_window.start_monitor_btn.setEnabled(True)
         self.main_window.stop_monitor_btn.setEnabled(False)
         

@@ -13,7 +13,8 @@ from .powerbi_client import PowerBIClient, parse_utc_to_local
 from .refresh_operations import (
     enable_auto_refresh as enable_auto_refresh_op,
     disable_auto_refresh as disable_auto_refresh_op,
-    trigger_manual_refresh as trigger_manual_refresh_op
+    trigger_manual_refresh as trigger_manual_refresh_op,
+    update_refresh_schedule as update_refresh_schedule_op,
 )
 
 logger = logging.getLogger(__name__)
@@ -83,7 +84,26 @@ class RefreshManager:
             APIRequestError: При ошибке запроса к API
         """
         return disable_auto_refresh_op(self.client, workspace_id, dataset_id)
-    
+
+    def update_refresh_schedule(
+        self,
+        workspace_id: str,
+        dataset_id: str,
+        schedule: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """
+        Создаёт или обновляет расписание обновления (PATCH refreshSchedule).
+
+        Args:
+            workspace_id: ID рабочей области
+            dataset_id: ID датасета
+            schedule: Поля расписания (enabled, days, times, localTimeZoneId, notifyOption)
+
+        Returns:
+            Результат операции
+        """
+        return update_refresh_schedule_op(self.client, workspace_id, dataset_id, schedule)
+
     def trigger_manual_refresh(
         self,
         workspace_id: str,

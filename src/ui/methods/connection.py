@@ -37,7 +37,7 @@ class ConnectionMethods:
             # Создаем клиент и менеджер (но не аутентифицируемся)
             # Путь для сохранения сырых данных: C:\temp\work\PBI_DATA\data
             # Для отключения сохранения сырых данных установить debug_data_path = None
-            debug_data_path = None  # r"C:\temp\work\PBI_DATA\data"
+            debug_data_path =  None #r"C:\temp\work\PBI_DATA\data"
             self.main_window.client = PowerBIClient(debug_data_path=debug_data_path)
             self.main_window.refresh_manager = RefreshManager(self.main_window.client)
             self.main_window.integration = UIIntegration(

@@ -68,8 +68,7 @@ def _prepare_schedule_for_update(schedule: Dict[str, Any]) -> Dict[str, Any]:
     """
     Подготавливает расписание для отправки в PATCH-запросе.
     Оставляет только поля, которые принимает API Power BI.
-    Согласно рабочему примеру пользователя, разрешённые поля:
-    enabled, days, times, localTimeZoneId (без notifyOption).
+    Разрешённые поля: enabled, days, times, localTimeZoneId, notifyOption.
     
     Args:
         schedule: Расписание (очищенное от служебных полей)
@@ -77,10 +76,46 @@ def _prepare_schedule_for_update(schedule: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Тело запроса для PATCH
     """
-    # Поля, которые API принимает для обновления расписания
-    allowed_fields = {"enabled", "days", "times", "localTimeZoneId"}
+    # Поля, которые API принимает для обновления расписания (в т.ч. notifyOption)
+    allowed_fields = {"enabled", "days", "times", "localTimeZoneId", "notifyOption"}
     prepared = {key: schedule[key] for key in schedule.keys() if key in allowed_fields}
     return prepared
+
+
+def update_refresh_schedule(
+    client: PowerBIClient,
+    workspace_id: str,
+    dataset_id: str,
+    schedule: Dict[str, Any],
+) -> Dict[str, Any]:
+    """
+    Создаёт или полностью обновляет расписание обновления датасета (PATCH).
+
+    Args:
+        client: Клиент Power BI
+        workspace_id: ID рабочей области
+        dataset_id: ID датасета
+        schedule: Словарь расписания (как в ответе GET refreshSchedule), без служебных полей @odata.*
+
+    Returns:
+        Ответ API
+
+    Raises:
+        APIRequestError: При ошибке запроса
+    """
+    cleaned = _clean_schedule(dict(schedule))
+    prepared = _prepare_schedule_for_update(cleaned)
+    body = {"value": prepared}
+    url = f"{client.POWER_BI_API_BASE}/groups/{workspace_id}/datasets/{dataset_id}/refreshSchedule"
+    logger.info(
+        "Обновление расписания датасета %s в workspace %s: enabled=%s, слотов времени=%s",
+        dataset_id,
+        workspace_id,
+        prepared.get("enabled"),
+        len(prepared.get("times") or []),
+    )
+    logger.debug("PATCH refreshSchedule: %s", body)
+    return client.make_request(url, method="PATCH", body=body)
 
 
 def enable_auto_refresh(

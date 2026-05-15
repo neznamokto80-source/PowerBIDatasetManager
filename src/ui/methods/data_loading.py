@@ -330,6 +330,63 @@ class DataLoadingMethods(BaseMethods):
                 return ws.get('name', 'Без имени')
         return workspace_id
     
+    def get_schedule_display_for_dataset(self, dataset):
+        """
+        Обновляет nextRefreshTime в dataset и возвращает строки для блока расписания.
+
+        Returns:
+            Кортеж (schedule_text, auto_refresh_status, next_refresh, enabled).
+        """
+        self._enrich_dataset_refresh_info(dataset)
+        next_refresh = dataset.get('nextRefreshTime', 'не запланировано')
+
+        refresh_schedule = dataset.get('refresh_schedule', {})
+        schedule_text = 'не настроено'
+        auto_refresh_status = 'Неизвестно'
+        enabled = None
+        schedule_times_local = []
+
+        if isinstance(refresh_schedule, dict) and refresh_schedule:
+            enabled = refresh_schedule.get('enabled')
+            if enabled is True:
+                auto_refresh_status = 'Включено'
+            elif enabled is False:
+                auto_refresh_status = 'Выключено'
+            else:
+                auto_refresh_status = 'Настроено (статус неизвестен)'
+
+            days = refresh_schedule.get('days', [])
+            times = refresh_schedule.get('times', [])
+            timezone = refresh_schedule.get('localTimeZoneId', '')
+
+            if days and times:
+                days_str = ', '.join(days) if isinstance(days, list) else str(days)
+                times_str = ', '.join(times) if isinstance(times, list) else str(times)
+                schedule_text = f'Дни: {days_str}\nВремя: {times_str}'
+                if timezone:
+                    schedule_text += f'\nЧасовой пояс: {timezone}'
+                if enabled is not None:
+                    schedule_text += f'\nСтатус: {"Включено" if enabled else "Выключено"}'
+
+                from_offset = 6
+                to_offset = 5
+                schedule_times_local = self._convert_schedule_times(times, from_offset, to_offset)
+                schedule_text += f'\nВремя (Екатеринбург): {", ".join(schedule_times_local)}'
+            else:
+                schedule_text = 'расписание не настроено'
+        else:
+            auto_refresh_status = 'Не настроено'
+
+        if enabled is False:
+            next_refresh = "N/A"
+        elif enabled is True and schedule_times_local and next_refresh in ('не запланировано', ''):
+            current_time = datetime.now()
+            next_refresh_dt = self._calculate_next_refresh(schedule_times_local, current_time)
+            if next_refresh_dt:
+                next_refresh = self._format_datetime_for_display(next_refresh_dt)
+
+        return schedule_text, auto_refresh_status, next_refresh, enabled
+
     def update_dataset_details(self, dataset):
         """Обновляет детальную информацию о выбранном датасете."""
         if not dataset:
@@ -341,68 +398,9 @@ class DataLoadingMethods(BaseMethods):
         workspace_name = self.main_window.get_workspace_name(workspace_id)
         status = dataset.get('status', 'unknown')
         last_refresh = dataset.get('lastRefreshTime', 'никогда')
-        # ========== ИСПРАВЛЕНИЕ: nextRefreshTime уже обогащён ==========
-        next_refresh = dataset.get('nextRefreshTime', 'не запланировано')
-        
-        # Получаем информацию о расписании
-        refresh_schedule = dataset.get('refresh_schedule', {})
-        schedule_text = 'не настроено'
-        auto_refresh_status = 'Неизвестно'
-        enabled = None
-        
-        # Переменные для вычисления следующего обновления
-        schedule_times_local = []
-        
-        if isinstance(refresh_schedule, dict) and refresh_schedule:
-            enabled = refresh_schedule.get('enabled')
-            if enabled is True:
-                auto_refresh_status = 'Включено'
-            elif enabled is False:
-                auto_refresh_status = 'Выключено'
-            else:
-                auto_refresh_status = 'Настроено (статус неизвестен)'
-            
-            # Формируем текст расписания
-            days = refresh_schedule.get('days', [])
-            times = refresh_schedule.get('times', [])
-            timezone = refresh_schedule.get('localTimeZoneId', '')
-            
-            # Сохраняем для вычислений
-            days if isinstance(days, list) else []
-            
-            if days and times:
-                days_str = ', '.join(days) if isinstance(days, list) else str(days)
-                times_str = ', '.join(times) if isinstance(times, list) else str(times)
-                schedule_text = f'Дни: {days_str}\nВремя: {times_str}'
-                if timezone:
-                    schedule_text += f'\nЧасовой пояс: {timezone}'
-                if enabled is not None:
-                    schedule_text += f'\nСтатус: {"Включено" if enabled else "Выключено"}'
-                
-                # Конвертируем времена расписания из UTC+6 в UTC+5 (Екатеринбург)
-                # Предполагаем, что timezone = "Central Asia Standard Time" (UTC+6)
-                # Пользовательский часовой пояс: Екатеринбург (UTC+5)
-                from_offset = 6  # UTC+6
-                to_offset = 5    # UTC+5
-                schedule_times_local = self._convert_schedule_times(times, from_offset, to_offset)
-                
-                # Добавляем конвертированное расписание в текст
-                schedule_text += f'\nВремя (Екатеринбург): {", ".join(schedule_times_local)}'
-            else:
-                schedule_text = 'расписание не настроено'
-        else:
-            auto_refresh_status = 'Не настроено'
-        
-        # ========== ИСПРАВЛЕНИЕ: убрано повторное вычисление next_refresh ==========
-        # Если автообновление выключено, следующее обновление = N/A
-        if enabled is False:
-            next_refresh = "N/A"
-        # Для включённого расписания next_refresh уже обогащён, но если почему-то нет – пересчитаем
-        elif enabled is True and schedule_times_local and next_refresh in ('не запланировано', ''):
-            current_time = datetime.now()
-            next_refresh_dt = self._calculate_next_refresh(schedule_times_local, current_time)
-            if next_refresh_dt:
-                next_refresh = self._format_datetime_for_display(next_refresh_dt)
+        schedule_text, auto_refresh_status, next_refresh, enabled = (
+            self.get_schedule_display_for_dataset(dataset)
+        )
         
         # Получаем информацию о последнем обновлении
         last_refresh_info = dataset.get('last_refresh', {})
@@ -469,3 +467,5 @@ class DataLoadingMethods(BaseMethods):
         # Кнопка ручного обновления активна, если датасет поддерживает обновление
         is_refreshable = dataset.get('isRefreshable', False)
         self.main_window.manual_refresh_btn.setEnabled(is_refreshable)
+        if hasattr(self.main_window, 'edit_schedule_btn'):
+            self.main_window.edit_schedule_btn.setEnabled(True)
