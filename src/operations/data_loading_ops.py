@@ -176,29 +176,11 @@ class DataLoadingMethods(BaseOperations):
             self.main_window.datasets = datasets
             self.main_window.log_message(f"✓ Загружено датасетов: {len(datasets)}")
             
-            # Обновление дерева датасетов
-            self.main_window.dataset_tree.clear()
-            for ds in datasets:
-                name = ds.get('name', 'Без имени')
-                status = ds.get('status', 'unknown')
-                refresh = ds.get('lastRefreshTime', 'никогда')
-                item = QTreeWidgetItem([name, status, refresh])
-                
-                # Цветовое выделение для дерева - используем общую логику определения цвета
-                background_color = ThemeColors.get_dataset_background_color(ds, self.main_window.current_theme)
-                
-                if background_color:
-                    brush = QBrush(background_color)
-                    for col in range(item.columnCount()):
-                        item.setBackground(col, brush)
-                
-                self.main_window.dataset_tree.addTopLevelItem(item)
-            
-            # Обновление таблицы датасетов
-            self.update_dataset_table(datasets)
-            
-            # Обновление статистики
+            # Обновление статистики (по всем датасетам)
             self.update_stats(datasets)
+            
+            # Применяем текущие фильтры для обновления таблицы и дерева
+            self.main_window.apply_filters()
             
             self.main_window.status_bar.showMessage("Датасеты загружены", 3000)
             
@@ -230,28 +212,11 @@ class DataLoadingMethods(BaseOperations):
             self.main_window.datasets = datasets
             self.main_window.log_message(f"✓ Загружено тестовых датасетов: {len(datasets)}")
             
-            # Обновление дерева датасетов
-            self.main_window.dataset_tree.clear()
-            for ds in datasets:
-                name = ds.get('name', 'Без имени')
-                status = ds.get('status', 'unknown')
-                refresh = ds.get('lastRefreshTime', 'никогда')
-                item = QTreeWidgetItem([name, status, refresh])
-                
-                # Цветовое выделение для дерева
-                background_color = ThemeColors.get_dataset_background_color(ds, self.main_window.current_theme)
-                if background_color:
-                    brush = QBrush(background_color)
-                    for col in range(item.columnCount()):
-                        item.setBackground(col, brush)
-                
-                self.main_window.dataset_tree.addTopLevelItem(item)
-            
-            # Обновление таблицы датасетов
-            self.update_dataset_table(datasets)
-            
-            # Обновление статистики
+            # Обновление статистики (по всем датасетам)
             self.update_stats(datasets)
+            
+            # Применяем текущие фильтры для обновления таблицы и дерева
+            self.main_window.apply_filters()
             
             self.main_window.status_bar.showMessage("Тестовые данные загружены", 3000)
             
@@ -269,6 +234,9 @@ class DataLoadingMethods(BaseOperations):
             workspace = self.main_window.get_workspace_name(workspace_id)
             dataset_id = ds.get('id', '') or ds.get('datasetId', '')
             status = ds.get('status', 'unknown')
+            # Преобразуем статус "unknown" в "в процессе обновления" для отображения
+            if status.lower() == 'unknown':
+                status = 'в процессе обновления'
             last_refresh = ds.get('lastRefreshTime', 'никогда')
             # ========== ИСПРАВЛЕНИЕ: теперь nextRefreshTime уже обогащён ==========
             next_refresh = ds.get('nextRefreshTime', 'не запланировано')
@@ -400,6 +368,9 @@ class DataLoadingMethods(BaseOperations):
         workspace_id = dataset.get('workspaceId') or dataset.get('workspace_id', '')
         workspace_name = self.main_window.get_workspace_name(workspace_id)
         status = dataset.get('status', 'unknown')
+        # Преобразуем статус "unknown" в "в процессе обновления" для отображения
+        if status.lower() == 'unknown':
+            status = 'в процессе обновления'
         last_refresh = dataset.get('lastRefreshTime', 'никогда')
         schedule_text, auto_refresh_status, next_refresh, enabled = (
             self.get_schedule_display_for_dataset(dataset)

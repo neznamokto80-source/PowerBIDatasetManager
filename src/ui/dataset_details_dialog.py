@@ -144,6 +144,9 @@ class DatasetDetailsDialog(QDialog):
         workspace_id = dataset.get('workspaceId') or dataset.get('workspace_id', '')
         workspace_name = self.main.get_workspace_name(workspace_id) if hasattr(self.main, 'get_workspace_name') else workspace_id
         status = dataset.get('status', 'unknown')
+        # Преобразуем статус "unknown" в "в процессе обновления" для отображения
+        if status.lower() == 'unknown':
+            status = 'в процессе обновления'
         last_refresh = dataset.get('lastRefreshTime', 'никогда')
         
         # Получаем информацию о расписании через метод главного окна

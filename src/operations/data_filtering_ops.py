@@ -69,7 +69,7 @@ class DataFilteringOperations(BaseOperations):
             # Фильтр по обновляющимся (in progress)
             if self.main_window.filter_in_progress.isChecked():
                 status = ds.get('status', '').lower()
-                if 'in progress' not in status and 'refreshing' not in status:
+                if 'in progress' not in status and 'refreshing' not in status and 'unknown' not in status:
                     include = False
             
             # Фильтр по названию датасета (текстовый фильтр)
@@ -91,6 +91,9 @@ class DataFilteringOperations(BaseOperations):
         for ds in filtered_datasets:
             name = ds.get('name', 'Без имени')
             status = ds.get('status', 'unknown')
+            # Преобразуем статус "unknown" в "в процессе обновления" для отображения
+            if status.lower() == 'unknown':
+                status = 'в процессе обновления'
             refresh = ds.get('lastRefreshTime', 'никогда')
             item = QTreeWidgetItem([name, status, refresh])
             
