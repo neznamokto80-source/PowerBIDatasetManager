@@ -294,6 +294,18 @@ class PowerBIMonitorUI(QMainWindow):
         """Запускает ручное обновление выбранного датасета."""
         return self.refresh_operations.trigger_manual_refresh()
 
+    def enable_auto_refresh_selected(self, datasets):
+        """Включает автоматическое обновление для выбранных датасетов."""
+        return self.refresh_operations.enable_auto_refresh_selected(datasets)
+
+    def disable_auto_refresh_selected(self, datasets):
+        """Отключает автоматическое обновление для выбранных датасетов."""
+        return self.refresh_operations.disable_auto_refresh_selected(datasets)
+
+    def trigger_manual_refresh_selected(self, datasets):
+        """Запускает ручное обновление для выбранных датасетов."""
+        return self.refresh_operations.trigger_manual_refresh_selected(datasets)
+
     def edit_refresh_schedule(self):
         """Диалог редактирования расписания обновления для выбранного датасета."""
         return self.refresh_operations.edit_refresh_schedule()
