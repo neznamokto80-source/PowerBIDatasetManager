@@ -26,9 +26,13 @@ class UIToolbars:
         self.main.addToolBar(toolbar)
         
         # Действия
-        connect_action = QAction("Подключить", self.main)
-        connect_action.triggered.connect(self.main.connect_to_powerbi)
-        toolbar.addAction(connect_action)
+        connect_cloud_action = QAction("Подключить Power BI Service (облако)", self.main)
+        connect_cloud_action.triggered.connect(self.main.connect_to_powerbi)
+        toolbar.addAction(connect_cloud_action)
+        
+        connect_server_action = QAction("Подключить Power BI Report Server", self.main)
+        connect_server_action.triggered.connect(self.main.connect_to_powerbi_report_server)
+        toolbar.addAction(connect_server_action)
         
         toolbar.addSeparator()
         
@@ -52,10 +56,15 @@ class UIToolbars:
         layout = QHBoxLayout(panel)
         layout.setContentsMargins(5, 5, 5, 5)
         
-        # Кнопка "Подключить"
-        connect_btn = QPushButton("Подключить")
-        connect_btn.clicked.connect(self.main.connect_to_powerbi)
-        layout.addWidget(connect_btn)
+        # Кнопка "Подключить Power BI Service (облако)"
+        connect_cloud_btn = QPushButton("Подключить Power BI Service (облако)")
+        connect_cloud_btn.clicked.connect(self.main.connect_to_powerbi)
+        layout.addWidget(connect_cloud_btn)
+        
+        # Кнопка "Подключить Power BI Report Server"
+        connect_server_btn = QPushButton("Подключить Power BI Report Server")
+        connect_server_btn.clicked.connect(self.main.connect_to_powerbi_report_server)
+        layout.addWidget(connect_server_btn)
         
         # Кнопка "Обновить" (добавлена по требованию)
         refresh_btn = QPushButton("Обновить")

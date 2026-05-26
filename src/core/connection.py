@@ -46,6 +46,9 @@ class ConnectionMethods:
             )
             self.main_window.data_provider = UIDataProvider(self.main_window.integration)
             
+            # Устанавливаем режим работы
+            self.main_window.current_mode = 'service'
+            
             self.main_window.log_message("Система готова к подключению. Нажмите кнопку 'Подключить'.")
             self.main_window.status_bar.showMessage("Готов к подключению")
             
@@ -64,6 +67,14 @@ class ConnectionMethods:
     def connect_to_powerbi(self):
         """Подключение к Power BI."""
         try:
+            # Проверяем, что клиент правильного типа
+            if not isinstance(self.main_window.client, PowerBIClient):
+                raise TypeError(
+                    f"Клиент имеет неверный тип {type(self.main_window.client).__name__}. "
+                    f"Ожидается PowerBIClient. Возможно, вы пытаетесь подключиться к Power BI Service "
+                    f"в режиме Power BI Report Server. Переключите режим."
+                )
+            
             self.main_window.log_message("Попытка подключения к Power BI...")
             self.main_window.status_bar.showMessage("Аутентификация...")
             

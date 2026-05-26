@@ -26,6 +26,7 @@ class DependencyManager:
         ("requests", "requests"),
         ("python-dateutil", "dateutil"),
         ("PyQt6", "PyQt6"),
+        ("requests_ntlm", "requests_ntlm"),
     ]
     
     @classmethod

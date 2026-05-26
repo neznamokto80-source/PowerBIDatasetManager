@@ -17,6 +17,9 @@ from src.ui.theme_colors import apply_theme_to_app
 
 # Импорт классов операций (после рефакторинга)
 from src.core.connection import ConnectionMethods
+from src.core.connection_pbirs import PBIRSConnectionMethods
+from src.core.powerbi_client import PowerBIClient
+from src.core.powerbi_report_server_client import PowerBIReportServerClient
 from src.operations.data_loading_ops import DataLoadingMethods
 from src.operations.ui_operations import UIOperations
 from src.operations.data_filtering_ops import DataFilteringOperations
@@ -45,6 +48,7 @@ class PowerBIMonitorUI(QMainWindow):
         self.datasets = []
         self.auto_refresh_enabled = False  # Флаг автообновления
         self.current_theme = "Светлая"  # Текущая тема интерфейса
+        self.current_mode = None  # 'service' или 'server'
         
         # Инициализация компонентов UI
         self.ui_components = UIComponents(self)
@@ -58,11 +62,49 @@ class PowerBIMonitorUI(QMainWindow):
     def _init_method_classes(self):
         """Инициализирует классы операций (после рефакторинга)."""
         self.connection_methods = ConnectionMethods(self)
+        self.pbirs_connection_methods = PBIRSConnectionMethods(self)
         self.data_loading_methods = DataLoadingMethods(self)
         self.ui_operations = UIOperations(self)
         self.data_filtering_operations = DataFilteringOperations(self)
         self.refresh_operations = RefreshOperations(self)
         self.progress_manager = ProgressManager(self)
+    
+    def _reset_backend_for_mode_switch(self, target_mode: str):
+        """
+        Сбрасывает бэкенд и UI при переключении между режимами Service и Server.
+        
+        Args:
+            target_mode: 'service' или 'server'
+        """
+        if self.current_mode == target_mode:
+            return  # Уже в нужном режиме, ничего не делаем
+        
+        logger.info(f"Переключение режима с {self.current_mode} на {target_mode}")
+        
+        # Очищаем данные
+        self.workspaces = []
+        self.datasets = []
+        self.current_workspace = None
+        self.current_dataset = None
+        
+        # Сбрасываем UI в состояние "не подключено"
+        self.update_ui_for_disconnected_state()
+        
+        # Останавливаем таймер автообновления, если запущен
+        if self.update_timer.isActive():
+            self.update_timer.stop()
+            self.log_message("Таймер автообновления остановлен при переключении режима.")
+        
+        # Сбрасываем клиент и менеджер (они будут созданы заново при инициализации)
+        self.client = None
+        self.refresh_manager = None
+        self.integration = None
+        self.data_provider = None
+        
+        # Обновляем текущий режим
+        self.current_mode = target_mode
+        
+        self.log_message(f"Режим переключен на {target_mode}. Готов к подключению.")
     
     def init_ui(self):
         """Инициализация пользовательского интерфейса."""
@@ -160,7 +202,26 @@ class PowerBIMonitorUI(QMainWindow):
     
     def connect_to_powerbi(self):
         """Подключение к Power BI."""
+        # Проверяем, нужен ли переход между режимами
+        if self.current_mode != 'service' or not isinstance(self.client, PowerBIClient):
+            self._reset_backend_for_mode_switch('service')
+            # После сброса клиент = None, нужно инициализировать бэкенд
+            self.initialize_backend()
         return self.connection_methods.connect_to_powerbi()
+    
+    def connect_to_powerbi_report_server(self):
+        """Подключение к Power BI Report Server."""
+        # Проверяем, нужен ли переход между режимами
+        if self.current_mode != 'server' or not isinstance(self.client, PowerBIReportServerClient):
+            self._reset_backend_for_mode_switch('server')
+            # После сброса клиент = None, бэкенд будет инициализирован в connect_to_powerbi_report_server
+            # (там запрашиваются параметры сервера и вызывается initialize_backend_pbirs)
+        return self.pbirs_connection_methods.connect_to_powerbi_report_server()
+    
+    def load_pbirs_reports(self):
+        """Загружает отчеты Power BI Report Server."""
+        if hasattr(self, 'pbirs_connection_methods'):
+            return self.pbirs_connection_methods.load_pbirs_reports()
     
     def refresh_data(self):
         """Обновление данных."""

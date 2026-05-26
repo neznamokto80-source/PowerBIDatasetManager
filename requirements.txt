@@ -1,12 +1,16 @@
 # Основные зависимости для Power BI Dataset Monitor & Manager
 PyQt6>=6.5.0
-azure-identity>=1.12.0
 requests>=2.31.0
 python-dateutil>=2.8.2
 
 # Дополнительные зависимости для работы с Power BI API
+# Для Power BI Service (облако)
+azure-identity>=1.12.0
 azure-core>=1.28.0
 msal>=1.24.0
+
+# Для Power BI Report Server (локальный сервер)
+requests_ntlm>=1.3.0
 
 # Утилиты для разработки (опционально)
 black>=23.0.0
