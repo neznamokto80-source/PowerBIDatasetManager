@@ -58,6 +58,7 @@ class UIPanels:
         workspace_layout.addWidget(refresh_workspaces_btn)
         
         workspace_group = create_group_box("Рабочие области", workspace_layout)
+        self.main.workspace_group = workspace_group  # сохраняем для изменения заголовка
         layout.addWidget(workspace_group)
         
         # Группа "Датасеты" удалена по требованию
@@ -143,6 +144,10 @@ class UIPanels:
         # Вкладка "Детали"
         details_tab = self.create_details_tab()
         self.main.tab_widget.addTab(details_tab, "Детали")
+        
+        # Вкладка "Отчёты PBIRS" (скрыта по умолчанию, показывается только в режиме server)
+        pbirs_reports_tab = self.create_pbirs_reports_tab()
+        self.main.tab_widget.addTab(pbirs_reports_tab, "Отчёты PBIRS")
         
         # Вкладка "История обновлений" удалена по требованию
         # history_tab = self.create_history_tab()
@@ -441,6 +446,51 @@ class UIPanels:
         layout.addWidget(self.main.schedule_group)
         
         layout.addStretch()
+        return tab
+    
+    def create_pbirs_reports_tab(self):
+        """Создает вкладку для отображения отчетов Power BI Report Server."""
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        
+        # Фильтр по папке (уже есть в левой панели) - здесь можно добавить поиск
+        filter_layout = QHBoxLayout()
+        filter_label = QLabel("Фильтр по названию:")
+        self.main.pbirs_report_name_filter = QLineEdit()
+        self.main.pbirs_report_name_filter.setPlaceholderText("Введите часть названия отчета...")
+        # Подключаем фильтр
+        if hasattr(self.main, 'on_pbirs_name_filter_changed'):
+            self.main.pbirs_report_name_filter.textChanged.connect(self.main.on_pbirs_name_filter_changed)
+        filter_layout.addWidget(filter_label)
+        filter_layout.addWidget(self.main.pbirs_report_name_filter)
+        layout.addLayout(filter_layout)
+        
+        # Таблица отчетов
+        self.main.pbirs_reports_table = QTableWidget()
+        self.main.pbirs_reports_table.setColumnCount(6)
+        self.main.pbirs_reports_table.setHorizontalHeaderLabels([
+            "Папка", "Название отчета", "Размер (МБ)", "Тип отчета", "Описание", "Источники данных"
+        ])
+        # Настройка ширины колонок
+        header = self.main.pbirs_reports_table.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)  # Папка
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)  # Название
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)  # Размер
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)  # Тип
+        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)  # Описание
+        header.setSectionResizeMode(5, QHeaderView.ResizeMode.Stretch)  # Источники
+        
+        self.main.pbirs_reports_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.main.pbirs_reports_table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        # TODO: подключить контекстное меню для отчетов
+        
+        layout.addWidget(self.main.pbirs_reports_table)
+        
+        # Кнопка обновления отчетов
+        refresh_btn = QPushButton("Обновить отчеты")
+        refresh_btn.clicked.connect(self.main.load_pbirs_reports)
+        layout.addWidget(refresh_btn)
+        
         return tab
     
     def create_history_tab(self):

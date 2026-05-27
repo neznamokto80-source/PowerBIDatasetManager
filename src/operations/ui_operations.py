@@ -38,8 +38,16 @@ class UIOperations:
         """Обновляет UI для состояния 'не подключено'."""
         # Очищаем все данные
         self.main_window.workspace_combo.clear()
-        self.main_window.workspace_combo.addItem("-- Не подключено --")
-        self.main_window.workspace_combo.setEnabled(False)
+        
+        # В зависимости от режима настраиваем комбобокс
+        if self.main_window.current_mode == 'server':
+            # В режиме server добавляем опцию "Все папки" и включаем комбобокс
+            self.main_window.workspace_combo.addItem("Все папки")
+            self.main_window.workspace_combo.setEnabled(True)
+        else:
+            # В режиме service показываем "Не подключено" и выключаем
+            self.main_window.workspace_combo.addItem("-- Не подключено --")
+            self.main_window.workspace_combo.setEnabled(False)
         
         self.main_window.dataset_tree.clear()
         self.main_window.dataset_tree.setHeaderLabels(["Название", "Статус", "Обновление"])
@@ -90,12 +98,22 @@ class UIOperations:
         # Включаем комбобокс рабочих областей
         self.main_window.workspace_combo.setEnabled(True)
         self.main_window.workspace_combo.clear()
-        if self.main_window.workspaces:
-            for ws in self.main_window.workspaces:
-                name = ws.get('name', 'Без имени')
-                self.main_window.workspace_combo.addItem(name, ws.get('id'))
+        
+        if self.main_window.current_mode == 'server':
+            # В режиме server добавляем "Все папки"
+            self.main_window.workspace_combo.addItem("Все папки")
+            # Если папки уже загружены, добавляем их
+            if hasattr(self.main_window, 'pbirs_folders') and self.main_window.pbirs_folders:
+                for folder in self.main_window.pbirs_folders:
+                    self.main_window.workspace_combo.addItem(folder)
         else:
-            self.main_window.workspace_combo.addItem("Нет рабочих областей")
+            # Режим service
+            if self.main_window.workspaces:
+                for ws in self.main_window.workspaces:
+                    name = ws.get('name', 'Без имени')
+                    self.main_window.workspace_combo.addItem(name, ws.get('id'))
+            else:
+                self.main_window.workspace_combo.addItem("Нет рабочих областей")
         
         # Включаем фильтры
         self.main_window.filter_enabled.setEnabled(True)
@@ -126,18 +144,109 @@ class UIOperations:
     # ========== Обработчики событий (из EventHandlers) ==========
     
     def on_workspace_selected(self, index):
-        """Обработчик выбора рабочей области."""
-        if index < 0 or not self.main_window.workspaces:
+        """Обработчик выбора рабочей области (для service) или папки (для server)."""
+        if index < 0:
             return
         
-        workspace_id = self.main_window.workspace_combo.itemData(index)
-        if workspace_id:
-            self.main_window.current_workspace = workspace_id
-            self.main_window.log_message(
-                f"Выбрана рабочая область: {self.main_window.workspace_combo.itemText(index)}"
-            )
-            self.main_window.load_datasets()
+        if self.main_window.current_mode == 'server':
+            # Режим PBIRS: выбор папки
+            folder_path = self.main_window.workspace_combo.itemText(index)
+            self.main_window.log_message(f"Выбрана папка: {folder_path}")
+            
+            # Получаем фильтр по названию отчета
+            name_filter = None
+            if hasattr(self.main_window, 'pbirs_report_name_filter'):
+                name_filter = self.main_window.pbirs_report_name_filter.text().strip()
+                if name_filter:
+                    self.main_window.log_message(f"Фильтр по названию: '{name_filter}'")
+            
+            # Фильтруем отчеты по папке и названию
+            if hasattr(self.main_window, 'pbirs_reports'):
+                reports = self.main_window.pbirs_reports
+                # Обновляем таблицу с фильтрацией
+                if hasattr(self.main_window, 'update_pbirs_reports_table'):
+                    self.main_window.update_pbirs_reports_table(reports, folder_path, name_filter)
+                    self.main_window.log_message(f"Таблица отфильтрована по папке: {folder_path}, фильтр названия: {name_filter or 'нет'}")
+                else:
+                    # Резервная логика фильтрации
+                    filtered = []
+                    for report in reports:
+                        path = report.get('Path', '')
+                        name = report.get('Name', '')
+                        # Проверяем фильтр по папке
+                        folder_match = (folder_path == "Все папки" or folder_path == '/' or
+                                       path.startswith(folder_path + '/') or path == folder_path)
+                        # Проверяем фильтр по названию
+                        name_match = True
+                        if name_filter:
+                            name_match = name_filter.lower() in name.lower()
+                        
+                        if folder_match and name_match:
+                            filtered.append(report)
+                    self.main_window.log_message(f"Найдено отчетов в папке: {len(filtered)}")
+                    for i, report in enumerate(filtered[:5]):
+                        self.main_window.log_message(f"  {i+1}. {report.get('Name', 'Без имени')}")
+            else:
+                self.main_window.log_message("Отчеты PBIRS не загружены.")
+        else:
+            # Режим Power BI Service
+            if not self.main_window.workspaces:
+                return
+            workspace_id = self.main_window.workspace_combo.itemData(index)
+            if workspace_id:
+                self.main_window.current_workspace = workspace_id
+                self.main_window.log_message(
+                    f"Выбрана рабочая область: {self.main_window.workspace_combo.itemText(index)}"
+                )
+                self.main_window.load_datasets()
     
+    def on_pbirs_name_filter_changed(self):
+        """Обработчик изменения текста в поле фильтра по названию отчета PBIRS."""
+        if self.main_window.current_mode != 'server':
+            return
+        
+        # Получаем текущий фильтр
+        name_filter = None
+        if hasattr(self.main_window, 'pbirs_report_name_filter'):
+            name_filter = self.main_window.pbirs_report_name_filter.text().strip()
+            if not name_filter:
+                name_filter = None
+        
+        # Получаем выбранную папку
+        selected_folder = None
+        if hasattr(self.main_window, 'workspace_combo'):
+            index = self.main_window.workspace_combo.currentIndex()
+            if index >= 0:
+                selected_folder = self.main_window.workspace_combo.itemText(index)
+        
+        # Применяем фильтрацию
+        if hasattr(self.main_window, 'pbirs_reports'):
+            reports = self.main_window.pbirs_reports
+            if hasattr(self.main_window, 'update_pbirs_reports_table'):
+                self.main_window.update_pbirs_reports_table(reports, selected_folder, name_filter)
+                self.main_window.log_message(f"Фильтр по названию обновлен: '{name_filter or 'нет'}'")
+            else:
+                # Резервная логика фильтрации
+                filtered = []
+                for report in reports:
+                    path = report.get('Path', '')
+                    name = report.get('Name', '')
+                    
+                    # Проверяем фильтр по папке
+                    folder_match = True
+                    if selected_folder and selected_folder != "Все папки" and selected_folder != '/':
+                        folder_match = path.startswith(selected_folder + '/') or path == selected_folder
+                    
+                    # Проверяем фильтр по названию
+                    name_match = True
+                    if name_filter:
+                        name_match = name_filter.lower() in name.lower()
+                    
+                    if folder_match and name_match:
+                        filtered.append(report)
+                
+                self.main_window.log_message(f"Отфильтровано отчетов: {len(filtered)} (фильтр: '{name_filter or 'нет'}')")
+
     def on_dataset_selected(self, item, column):
         """Обработчик выбора датасета."""
         if not item:

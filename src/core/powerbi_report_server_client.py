@@ -287,6 +287,24 @@ class PowerBIReportServerClient:
             logger.error(f"Ошибка при получении информации об отчете {report_id}: {e}")
             raise
     
+    def get_report_data_sources(self, report_id: str) -> List[Dict[str, Any]]:
+        """
+        Получает источники данных для указанного отчёта.
+        
+        Args:
+            report_id: ID отчета
+        
+        Returns:
+            Список источников данных, каждый элемент - словарь с полями:
+            Name, ConnectionString, DataSourceType, CredentialRetrieval, etc.
+        """
+        try:
+            data = self._make_request(f"reports('{report_id}')/DataSources")
+            return data.get('value', [])
+        except Exception as e:
+            logger.error(f"Ошибка при получении источников данных для отчета {report_id}: {e}")
+            return []
+    
     def test_connection(self) -> bool:
         """
         Проверяет подключение к серверу.

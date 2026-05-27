@@ -48,6 +48,9 @@ class ConnectionMethods:
             
             # Устанавливаем режим работы
             self.main_window.current_mode = 'service'
+            # Обновляем заголовок группы
+            if hasattr(self.main_window, '_update_workspace_group_title'):
+                self.main_window._update_workspace_group_title()
             
             self.main_window.log_message("Система готова к подключению. Нажмите кнопку 'Подключить'.")
             self.main_window.status_bar.showMessage("Готов к подключению")

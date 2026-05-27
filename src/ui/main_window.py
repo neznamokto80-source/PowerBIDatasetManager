@@ -8,7 +8,8 @@
 import logging
 
 from PyQt6.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QSplitter, QStatusBar
+    QMainWindow, QWidget, QVBoxLayout, QSplitter, QStatusBar,
+    QTableWidgetItem
 )
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 
@@ -24,6 +25,7 @@ from src.operations.data_loading_ops import DataLoadingMethods
 from src.operations.ui_operations import UIOperations
 from src.operations.data_filtering_ops import DataFilteringOperations
 from src.operations.refresh_operations import RefreshOperations, ProgressManager
+from src.operations.pbirs_operations import PBIRSOperations
 from src.utils.log_handler import QTextEditLogHandler
 
 logger = logging.getLogger(__name__)
@@ -62,12 +64,21 @@ class PowerBIMonitorUI(QMainWindow):
     def _init_method_classes(self):
         """Инициализирует классы операций (после рефакторинга)."""
         self.connection_methods = ConnectionMethods(self)
-        self.pbirs_connection_methods = PBIRSConnectionMethods(self)
+        self.pbirs_connection_methods = PBIRSConnectionMethods(self)  # Для обратной совместимости
+        self.pbirs_operations = PBIRSOperations(self)  # Новый модуль PBIRS операций
         self.data_loading_methods = DataLoadingMethods(self)
         self.ui_operations = UIOperations(self)
         self.data_filtering_operations = DataFilteringOperations(self)
         self.refresh_operations = RefreshOperations(self)
         self.progress_manager = ProgressManager(self)
+    
+    def _update_workspace_group_title(self):
+        """Обновляет заголовок группы 'Рабочие области' в зависимости от текущего режима."""
+        if hasattr(self, 'workspace_group'):
+            if self.current_mode == 'server':
+                self.workspace_group.setTitle("Расположение отчетов")
+            else:
+                self.workspace_group.setTitle("Рабочие области")
     
     def _reset_backend_for_mode_switch(self, target_mode: str):
         """
@@ -103,6 +114,12 @@ class PowerBIMonitorUI(QMainWindow):
         
         # Обновляем текущий режим
         self.current_mode = target_mode
+        
+        # Обновляем заголовок группы
+        self._update_workspace_group_title()
+        
+        # Обновляем видимость вкладок
+        self.update_tabs_visibility()
         
         self.log_message(f"Режим переключен на {target_mode}. Готов к подключению.")
     
@@ -216,12 +233,146 @@ class PowerBIMonitorUI(QMainWindow):
             self._reset_backend_for_mode_switch('server')
             # После сброса клиент = None, бэкенд будет инициализирован в connect_to_powerbi_report_server
             # (там запрашиваются параметры сервера и вызывается initialize_backend_pbirs)
-        return self.pbirs_connection_methods.connect_to_powerbi_report_server()
+        return self.pbirs_operations.connect_to_powerbi_report_server()
     
     def load_pbirs_reports(self):
         """Загружает отчеты Power BI Report Server."""
-        if hasattr(self, 'pbirs_connection_methods'):
-            return self.pbirs_connection_methods.load_pbirs_reports()
+        if hasattr(self, 'pbirs_operations'):
+            return self.pbirs_operations.load_pbirs_reports()
+    
+    def update_folders_combo(self, folders):
+        """
+        Обновляет комбобокс папок (в режиме server) или рабочие области (в режиме service).
+        
+        Args:
+            folders: Список путей папок (для режима server)
+        """
+        if not hasattr(self, 'workspace_combo'):
+            return
+        
+        # Сохраняем текущий выбор
+        current_text = self.workspace_combo.currentText()
+        
+        self.workspace_combo.clear()
+        if self.current_mode == 'server':
+            # Добавляем опцию "Все папки" в начало
+            self.workspace_combo.addItem("Все папки")
+            # Добавляем папки
+            for folder in folders:
+                self.workspace_combo.addItem(folder)
+            # Если есть предыдущий выбор, пытаемся восстановить
+            index = self.workspace_combo.findText(current_text)
+            if index >= 0:
+                self.workspace_combo.setCurrentIndex(index)
+            else:
+                self.workspace_combo.setCurrentIndex(0)  # По умолчанию "Все папки"
+        else:
+            # Для service комбобокс будет заполняться отдельно
+            pass
+    
+    def update_pbirs_reports_table(self, reports, selected_folder=None, name_filter=None):
+        """
+        Заполняет таблицу отчётов PBIRS данными с фильтрацией по выбранной папке и названию.
+        
+        Args:
+            reports: Список словарей с информацией об отчётах
+            selected_folder: Выбранная папка для фильтрации (None или "Все папки" - показывать все)
+            name_filter: Строка для фильтрации по названию отчета (None или пустая - без фильтра)
+        """
+        if not hasattr(self, 'pbirs_reports_table'):
+            return
+        
+        table = self.pbirs_reports_table
+        table.setRowCount(0)
+        
+        if not reports:
+            return
+        
+        # Фильтруем отчеты по выбранной папке
+        filtered_reports = []
+        if selected_folder and selected_folder != "Все папки":
+            # Нормализуем выбранную папку: добавляем ведущий слеш если отсутствует
+            if not selected_folder.startswith('/'):
+                selected_folder = '/' + selected_folder
+            # Для каждой папки включаем ее подпапки
+            for report in reports:
+                path = report.get('Path', '')
+                # Получаем папку отчета (убираем имя файла)
+                report_folder = '/'.join(path.split('/')[:-1]) if '/' in path else '/'
+                if not report_folder.startswith('/'):
+                    report_folder = '/' + report_folder
+                # Проверяем, начинается ли папка отчета с выбранной папки (включая подпапки)
+                if report_folder == selected_folder or report_folder.startswith(selected_folder + '/'):
+                    filtered_reports.append(report)
+        else:
+            filtered_reports = reports
+        
+        # Дополнительная фильтрация по названию отчета
+        if name_filter and name_filter.strip():
+            name_filter_lower = name_filter.strip().lower()
+            filtered_reports = [r for r in filtered_reports if name_filter_lower in r.get('Name', '').lower()]
+        
+        # Устанавливаем количество строк
+        table.setRowCount(len(filtered_reports))
+        
+        for row, report in enumerate(filtered_reports):
+            # Папка
+            path = report.get('Path', '')
+            # Убираем имя отчёта из пути, оставляем только директорию
+            folder = '/'.join(path.split('/')[:-1]) if '/' in path else '/'
+            if not folder.startswith('/'):
+                folder = '/' + folder
+            table.setItem(row, 0, QTableWidgetItem(folder))
+            
+            # Название отчёта
+            name = report.get('Name', 'Без имени')
+            table.setItem(row, 1, QTableWidgetItem(name))
+            
+            # Размер в МБ
+            size_bytes = report.get('Size', 0)
+            size_mb = round(size_bytes / (1024 * 1024), 2) if size_bytes else 0
+            table.setItem(row, 2, QTableWidgetItem(str(size_mb)))
+            
+            # Тип отчёта
+            report_type = report.get('Type', 'Unknown')
+            type_map = {
+                'PowerBIReport': 'Power BI',
+                'PaginatedReport': 'Paginated Report',
+                'Report': 'Report',
+                'LinkedReport': 'Linked Report'
+            }
+            display_type = type_map.get(report_type, report_type)
+            table.setItem(row, 3, QTableWidgetItem(display_type))
+            
+            # Описание
+            description = report.get('Description', '')
+            table.setItem(row, 4, QTableWidgetItem(description))
+            
+            # Источники данных (будем заполнять позже)
+            table.setItem(row, 5, QTableWidgetItem("Загрузка..."))
+        
+        # Автоматически подгоняем ширину колонок
+        table.resizeColumnsToContents()
+    
+    def update_tabs_visibility(self):
+        """
+        Обновляет видимость вкладок в зависимости от текущего режима.
+        В режиме server скрывает вкладки "Обзор" и "Детали", показывает "Отчёты PBIRS".
+        В режиме service показывает "Обзор" и "Детали", скрывает "Отчёты PBIRS".
+        """
+        if not hasattr(self, 'tab_widget'):
+            return
+        
+        if self.current_mode == 'server':
+            # Скрываем вкладки 0 и 1, показываем вкладку 2
+            self.tab_widget.setTabVisible(0, False)  # Обзор
+            self.tab_widget.setTabVisible(1, False)  # Детали
+            self.tab_widget.setTabVisible(2, True)   # Отчёты PBIRS
+        else:
+            # Показываем вкладки 0 и 1, скрываем вкладку 2
+            self.tab_widget.setTabVisible(0, True)
+            self.tab_widget.setTabVisible(1, True)
+            self.tab_widget.setTabVisible(2, False)
     
     def refresh_data(self):
         """Обновление данных."""
@@ -274,6 +425,10 @@ class PowerBIMonitorUI(QMainWindow):
     def on_dataset_selected(self, item, column):
         """Обработчик выбора датасета."""
         return self.ui_operations.on_dataset_selected(item, column)
+    
+    def on_pbirs_name_filter_changed(self):
+        """Обработчик изменения текста в поле фильтра по названию отчета PBIRS."""
+        return self.ui_operations.on_pbirs_name_filter_changed()
     
     def on_details_dataset_selected(self, index):
         """Обработчик выбора датасета в комбобоксе на вкладке детали."""

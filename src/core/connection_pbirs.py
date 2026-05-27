@@ -65,6 +65,9 @@ class PBIRSConnectionMethods:
             
             # Устанавливаем режим работы
             self.main_window.current_mode = 'server'
+            # Обновляем заголовок группы
+            if hasattr(self.main_window, '_update_workspace_group_title'):
+                self.main_window._update_workspace_group_title()
             
             self.main_window.log_message(f"Система готова к подключению к Power BI Report Server: {server_url}")
             self.main_window.status_bar.showMessage("Готов к подключению к PBIRS")
@@ -169,6 +172,37 @@ class PBIRSConnectionMethods:
             )
             self.main_window.update_ui_for_disconnected_state()
     
+    def _extract_folders_from_reports(self, reports: list) -> list:
+        """
+        Извлекает уникальные папки из списка отчетов PBIRS.
+        
+        Args:
+            reports: Список отчетов (каждый отчет - dict с полем 'Path')
+            
+        Returns:
+            Список уникальных папок (строки), включая корневую '/'
+        """
+        folders = set()
+        folders.add('/')  # Корневая папка
+        for report in reports:
+            path = report.get('Path', '')
+            if path:
+                # Путь вида "/folder/subfolder/report"
+                # Добавляем все родительские директории
+                parts = path.strip('/').split('/')
+                current = ''
+                for part in parts[:-1]:  # Исключаем последний элемент (имя отчета)
+                    current += '/' + part
+                    folders.add(current)
+                # Также добавляем полный путь как папку (если отчет лежит прямо в папке)
+                # Но обычно Path указывает на сам отчет, а не папку.
+                # Для простоты добавляем директорию отчета (убираем последний элемент)
+                dir_path = '/'.join(parts[:-1]) if len(parts) > 1 else '/'
+                if dir_path:
+                    folders.add('/' + dir_path if not dir_path.startswith('/') else dir_path)
+        # Преобразуем в список и сортируем
+        return sorted(list(folders))
+    
     def load_pbirs_reports(self):
         """Загружает отчеты Power BI Report Server."""
         if not self.main_window.client or not hasattr(self.main_window.client, 'get_powerbi_reports'):
@@ -181,7 +215,18 @@ class PBIRSConnectionMethods:
             # Сохраняем отчеты для использования в UI
             self.main_window.pbirs_reports = reports
             
-            # TODO: Адаптировать UI для отображения отчетов вместо датасетов
+            # Извлекаем папки и обновляем комбобокс
+            folders = self._extract_folders_from_reports(reports)
+            self.main_window.pbirs_folders = folders
+            # Вызываем метод обновления UI (если он существует)
+            if hasattr(self.main_window, 'update_folders_combo'):
+                self.main_window.update_folders_combo(folders)
+            else:
+                # Логируем папки
+                self.main_window.log_message(f"  Найдено папок: {len(folders)}")
+                for folder in folders[:10]:
+                    self.main_window.log_message(f"    - {folder}")
+            
             # Временно выводим информацию в лог
             for i, report in enumerate(reports[:5]):  # Первые 5 отчетов
                 name = report.get('Name', 'Без имени')
@@ -190,6 +235,31 @@ class PBIRSConnectionMethods:
             
             if len(reports) > 5:
                 self.main_window.log_message(f"  ... и еще {len(reports) - 5} отчетов")
+            
+            # Обновляем таблицу отчётов в UI
+            if hasattr(self.main_window, 'update_pbirs_reports_table'):
+                self.main_window.update_pbirs_reports_table(reports)
+                self.main_window.log_message("✓ Таблица отчётов PBIRS обновлена")
+            
+            # Асинхронно загружаем источники данных для отчётов (первые 10)
+            # Чтобы не блокировать UI, можно запустить в отдельном потоке
+            # Пока просто логируем
+            if reports and hasattr(self.main_window.client, 'get_report_data_sources'):
+                self.main_window.log_message("  Загрузка источников данных для отчётов...")
+                # Для демонстрации загрузим для первого отчёта
+                if len(reports) > 0:
+                    first_report = reports[0]
+                    report_id = first_report.get('Id')
+                    if report_id:
+                        try:
+                            data_sources = self.main_window.client.get_report_data_sources(report_id)
+                            self.main_window.log_message(f"    Для отчёта '{first_report.get('Name')}' найдено источников: {len(data_sources)}")
+                            for ds in data_sources[:3]:
+                                ds_name = ds.get('Name', 'Без имени')
+                                ds_type = ds.get('DataSourceType', 'Unknown')
+                                self.main_window.log_message(f"      - {ds_name} ({ds_type})")
+                        except Exception as e:
+                            self.main_window.log_message(f"    Ошибка загрузки источников данных: {e}")
                 
         except Exception as e:
             self.main_window.log_message(f"✗ Ошибка при загрузке отчетов PBIRS: {e}")

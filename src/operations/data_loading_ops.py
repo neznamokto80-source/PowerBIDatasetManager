@@ -101,35 +101,72 @@ class DataLoadingMethods(BaseOperations):
                 self.main_window.status_bar.showMessage("Ошибка обновления", 5000)
     
     def load_workspaces(self):
-        """Загружает список рабочих областей из Power BI."""
+        """Загружает список рабочих областей (для service) или папок отчетов (для server)."""
         # Используем контекстный менеджер для автоматического управления прогресс-баром
-        with self.progress.with_progress("Загрузка рабочих областей...", indeterminate=True):
+        with self.progress.with_progress("Загрузка...", indeterminate=True):
             try:
-                self.main_window.log_message("Обновление списка рабочих областей...")
-                self.main_window.status_bar.showMessage("Загрузка рабочих областей...")
-                
-                self.main_window.workspaces = self.main_window.client.get_workspaces()
-                self.main_window.log_message(f"✓ Загружено рабочих областей: {len(self.main_window.workspaces)}")
-                
-                # Обновление комбобокса
-                self.main_window.workspace_combo.clear()
-                if self.main_window.workspaces:
-                    for ws in self.main_window.workspaces:
-                        name = ws.get('name', 'Без имени')
-                        self.main_window.workspace_combo.addItem(name, ws.get('id'))
-                else:
-                    self.main_window.workspace_combo.addItem("Нет рабочих областей")
-                
-                # Если есть рабочие области, выбираем первую
-                if self.main_window.workspaces:
-                    self.main_window.current_workspace = self.main_window.workspaces[0].get('id')
-                    self.main_window.workspace_combo.setCurrentIndex(0)
-                    self.main_window.load_datasets()
-                
-                self.main_window.status_bar.showMessage("Рабочие области обновлены", 3000)
+                if self.main_window.current_mode == 'server':
+                    self.main_window.log_message("Обновление списка папок отчетов PBIRS...")
+                    self.main_window.status_bar.showMessage("Загрузка папок отчетов...")
+                    
+                    # Если отчеты еще не загружены, загружаем их
+                    if not hasattr(self.main_window, 'pbirs_reports') or not self.main_window.pbirs_reports:
+                        self.main_window.load_pbirs_reports()
+                    
+                    # Используем уже извлеченные папки
+                    if hasattr(self.main_window, 'pbirs_folders'):
+                        folders = self.main_window.pbirs_folders
+                    else:
+                        # Извлекаем папки из отчетов
+                        from src.core.connection_pbirs import PBIRSConnectionMethods
+                        extractor = PBIRSConnectionMethods(self.main_window)
+                        folders = extractor._extract_folders_from_reports(self.main_window.pbirs_reports)
+                        self.main_window.pbirs_folders = folders
+                    
+                    self.main_window.log_message(f"✓ Загружено папок: {len(folders)}")
+                    
+                    # Обновление комбобокса с опцией "Все папки"
+                    self.main_window.workspace_combo.clear()
+                    # Добавляем опцию "Все папки" в начало
+                    self.main_window.workspace_combo.addItem("Все папки")
+                    if folders:
+                        for folder in folders:
+                            self.main_window.workspace_combo.addItem(folder)
+                        self.main_window.workspace_combo.setCurrentIndex(0)  # Выбираем "Все папки"
+                        # Вызываем обработчик выбора папки (пока ничего)
+                        # self.main_window.on_workspace_selected(0)
+                    else:
+                        # Если папок нет, оставляем только "Все папки"
+                        pass
+                    
+                    self.main_window.status_bar.showMessage("Папки отчетов обновлены", 3000)
+                    
+                else:  # режим service или None
+                    self.main_window.log_message("Обновление списка рабочих областей...")
+                    self.main_window.status_bar.showMessage("Загрузка рабочих областей...")
+                    
+                    self.main_window.workspaces = self.main_window.client.get_workspaces()
+                    self.main_window.log_message(f"✓ Загружено рабочих областей: {len(self.main_window.workspaces)}")
+                    
+                    # Обновление комбобокса
+                    self.main_window.workspace_combo.clear()
+                    if self.main_window.workspaces:
+                        for ws in self.main_window.workspaces:
+                            name = ws.get('name', 'Без имени')
+                            self.main_window.workspace_combo.addItem(name, ws.get('id'))
+                    else:
+                        self.main_window.workspace_combo.addItem("Нет рабочих областей")
+                    
+                    # Если есть рабочие области, выбираем первую
+                    if self.main_window.workspaces:
+                        self.main_window.current_workspace = self.main_window.workspaces[0].get('id')
+                        self.main_window.workspace_combo.setCurrentIndex(0)
+                        self.main_window.load_datasets()
+                    
+                    self.main_window.status_bar.showMessage("Рабочие области обновлены", 3000)
                 
             except Exception as e:
-                self.main_window.log_message(f"✗ Ошибка загрузки рабочих областей: {e}")
+                self.main_window.log_message(f"✗ Ошибка загрузки: {e}")
                 self.main_window.status_bar.showMessage("Ошибка загрузки", 5000)
     
     def load_datasets(self):
