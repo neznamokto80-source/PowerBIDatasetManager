@@ -187,6 +187,9 @@ class PBIRSConnectionMethods:
         for report in reports:
             path = report.get('Path', '')
             if path:
+                # Убедимся, что path - строка
+                if not isinstance(path, str):
+                    path = str(path)
                 # Путь вида "/folder/subfolder/report"
                 # Добавляем все родительские директории
                 parts = path.strip('/').split('/')

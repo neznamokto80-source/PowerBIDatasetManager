@@ -9,7 +9,7 @@ import logging
 
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QSplitter, QStatusBar,
-    QTableWidgetItem
+    QTableWidgetItem, QDialog, QFormLayout, QLabel, QPushButton, QTextEdit
 )
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 
@@ -27,6 +27,7 @@ from src.operations.data_filtering_ops import DataFilteringOperations
 from src.operations.refresh_operations import RefreshOperations, ProgressManager
 from src.operations.pbirs_operations import PBIRSOperations
 from src.utils.log_handler import QTextEditLogHandler
+from src.utils.pbirs_data_enricher import enrich_reports_list, enrich_report_data
 
 logger = logging.getLogger(__name__)
 
@@ -181,6 +182,9 @@ class PowerBIMonitorUI(QMainWindow):
         
         # Настройка обработчика логов для отображения в панели логов
         self.setup_log_handler()
+        
+        # Обновляем видимость вкладок в соответствии с текущим режимом
+        self.update_tabs_visibility()
     
     # Делегирование методов классам методов
     
@@ -275,7 +279,7 @@ class PowerBIMonitorUI(QMainWindow):
         Заполняет таблицу отчётов PBIRS данными с фильтрацией по выбранной папке и названию.
         
         Args:
-            reports: Список словарей с информацией об отчётах
+            reports: Список словарей с информацией об отчётах (уже обогащенные данные)
             selected_folder: Выбранная папка для фильтрации (None или "Все папки" - показывать все)
             name_filter: Строка для фильтрации по названию отчета (None или пустая - без фильтра)
         """
@@ -288,6 +292,11 @@ class PowerBIMonitorUI(QMainWindow):
         if not reports:
             return
         
+        # Обогащаем данные отчетов, если они еще не обогащены
+        # Проверяем, есть ли уже обогащенные поля
+        if reports and 'DataSourcesBrief' not in reports[0]:
+            reports = enrich_reports_list(reports)
+        
         # Фильтруем отчеты по выбранной папке
         filtered_reports = []
         if selected_folder and selected_folder != "Все папки":
@@ -297,6 +306,9 @@ class PowerBIMonitorUI(QMainWindow):
             # Для каждой папки включаем ее подпапки
             for report in reports:
                 path = report.get('Path', '')
+                # Убедимся, что path - строка
+                if not isinstance(path, str):
+                    path = str(path)
                 # Получаем папку отчета (убираем имя файла)
                 report_folder = '/'.join(path.split('/')[:-1]) if '/' in path else '/'
                 if not report_folder.startswith('/'):
@@ -316,40 +328,180 @@ class PowerBIMonitorUI(QMainWindow):
         table.setRowCount(len(filtered_reports))
         
         for row, report in enumerate(filtered_reports):
-            # Папка
-            path = report.get('Path', '')
-            # Убираем имя отчёта из пути, оставляем только директорию
-            folder = '/'.join(path.split('/')[:-1]) if '/' in path else '/'
-            if not folder.startswith('/'):
-                folder = '/' + folder
+            # Колонка 0: Папка
+            folder = report.get('FolderDisplay', '/')
             table.setItem(row, 0, QTableWidgetItem(folder))
             
-            # Название отчёта
+            # Колонка 1: Название отчёта
             name = report.get('Name', 'Без имени')
             table.setItem(row, 1, QTableWidgetItem(name))
             
-            # Размер в МБ
-            size_bytes = report.get('Size', 0)
-            size_mb = round(size_bytes / (1024 * 1024), 2) if size_bytes else 0
-            table.setItem(row, 2, QTableWidgetItem(str(size_mb)))
+            # Колонка 2: Размер в МБ
+            size_display = report.get('SizeDisplay', '0 МБ')
+            table.setItem(row, 2, QTableWidgetItem(size_display))
             
-            # Тип отчёта
-            report_type = report.get('Type', 'Unknown')
-            type_map = {
-                'PowerBIReport': 'Power BI',
-                'PaginatedReport': 'Paginated Report',
-                'Report': 'Report',
-                'LinkedReport': 'Linked Report'
-            }
-            display_type = type_map.get(report_type, report_type)
-            table.setItem(row, 3, QTableWidgetItem(display_type))
+            # Колонка 3: Тип отчёта
+            report_type_display = report.get('ReportTypeDisplay', 'Unknown')
+            table.setItem(row, 3, QTableWidgetItem(report_type_display))
             
-            # Описание
-            description = report.get('Description', '')
-            table.setItem(row, 4, QTableWidgetItem(description))
+            # Колонка 4: Источники данных (кратко)
+            sources_brief = report.get('DataSourcesBrief', 'Нет источников')
+            table.setItem(row, 4, QTableWidgetItem(sources_brief))
             
-            # Источники данных (будем заполнять позже)
-            table.setItem(row, 5, QTableWidgetItem("Загрузка..."))
+            # Колонка 5: Последний статус
+            last_status = report.get('LastStatus', 'Не запускался')
+            table.setItem(row, 5, QTableWidgetItem(last_status))
+            
+            # Колонка 6: Последнее обновление
+            last_run_display = report.get('LastRunDisplay', 'Никогда')
+            table.setItem(row, 6, QTableWidgetItem(last_run_display))
+            
+            # Колонка 7: Следующее обновление
+            next_run_display = report.get('NextRunDisplay', 'Не запланировано')
+            table.setItem(row, 7, QTableWidgetItem(next_run_display))
+            
+            # Сохраняем полные данные отчета в userData для доступа при двойном клике
+            table.item(row, 0).setData(Qt.ItemDataRole.UserRole, report)
+        
+        # Автоматически подгоняем ширину колонок
+        table.resizeColumnsToContents()
+    
+    def update_pbirs_sources_table(self, sources_data, report_filter=None, source_filter=None):
+        """
+        Заполняет таблицу источников данных PBIRS.
+        
+        Args:
+            sources_data: Список словарей с информацией об источниках данных.
+                Каждый словарь должен содержать ключи: Folder, ReportName, DataSource, ConnectionString
+            report_filter: Строка для фильтрации по названию отчета (None - без фильтра)
+            source_filter: Строка для фильтрации по ConnectionString (None - без фильтра)
+        """
+        if not hasattr(self, 'pbirs_sources_table'):
+            return
+        
+        table = self.pbirs_sources_table
+        table.setRowCount(0)
+        
+        if not sources_data:
+            return
+        
+        # Фильтрация данных
+        filtered_sources = []
+        for source_item in sources_data:
+            folder = source_item.get('Folder', '')
+            report_name = source_item.get('ReportName', '')
+            connection_string = source_item.get('ConnectionString', '')
+            
+            # Проверяем фильтр по названию отчета
+            report_match = True
+            if report_filter and report_filter.strip():
+                report_match = report_filter.lower() in report_name.lower()
+            
+            # Проверяем фильтр по ConnectionString
+            source_match = True
+            if source_filter and source_filter.strip():
+                filter_lower = source_filter.lower()
+                connection_string_lower = connection_string.lower()
+                source_match = filter_lower in connection_string_lower
+            
+            if report_match and source_match:
+                filtered_sources.append(source_item)
+        
+        # Устанавливаем количество строк
+        table.setRowCount(len(filtered_sources))
+        
+        for row, source_item in enumerate(filtered_sources):
+            # Колонка 0: Папка
+            folder = source_item.get('Folder', '/')
+            table.setItem(row, 0, QTableWidgetItem(folder))
+            
+            # Колонка 1: Название отчета
+            report_name = source_item.get('ReportName', 'Без имени')
+            table.setItem(row, 1, QTableWidgetItem(report_name))
+            
+            # Колонка 2: ConnectionString (сокращенный вид)
+            connection_string = source_item.get('ConnectionString', '')
+            # Обрезаем длинные строки
+            if len(connection_string) > 100:
+                display_string = connection_string[:97] + '...'
+            else:
+                display_string = connection_string
+            table.setItem(row, 2, QTableWidgetItem(display_string))
+            # Сохраняем полный ConnectionString в tooltip
+            if connection_string:
+                table.item(row, 2).setToolTip(connection_string)
+        
+        # Автоматически подгоняем ширину колонок
+        table.resizeColumnsToContents()
+    
+    def update_pbirs_details_table(self, reports, name_filter=None):
+        """
+        Обновляет таблицу детальной информации об отчетах PBIRS.
+        
+        Args:
+            reports: Список отчетов с расширенными данными
+            name_filter: Фильтр по названию отчета (часть строки)
+        """
+        if not hasattr(self, 'pbirs_details_table'):
+            return
+        
+        table = self.pbirs_details_table
+        table.setRowCount(0)
+        
+        # Фильтрация отчетов
+        filtered_reports = []
+        for report in reports:
+            if name_filter:
+                report_name = report.get('Name', '')
+                if name_filter.lower() not in report_name.lower():
+                    continue
+            filtered_reports.append(report)
+        
+        # Сохраняем отфильтрованные данные для использования в фильтрации
+        self.pbirs_details_data = filtered_reports
+        
+        table.setRowCount(len(filtered_reports))
+        
+        for row, report in enumerate(filtered_reports):
+            # ID
+            report_id = report.get('Id', '')
+            table.setItem(row, 0, QTableWidgetItem(str(report_id)))
+            
+            # Название
+            name = report.get('Name', '')
+            table.setItem(row, 1, QTableWidgetItem(name))
+            
+            # Путь
+            path = report.get('Path', '')
+            table.setItem(row, 2, QTableWidgetItem(path))
+            
+            # Тип
+            report_type = report.get('ReportTypeDisplay', report.get('Type', ''))
+            table.setItem(row, 3, QTableWidgetItem(report_type))
+            
+            # Размер (МБ)
+            size_mb = report.get('SizeDisplay', '0')
+            table.setItem(row, 4, QTableWidgetItem(size_mb))
+            
+            # Источники данных
+            data_sources = report.get('DataSourcesDisplay', '')
+            table.setItem(row, 5, QTableWidgetItem(data_sources))
+            
+            # Последний статус
+            last_status = report.get('LastStatusDisplay', '')
+            table.setItem(row, 6, QTableWidgetItem(last_status))
+            
+            # Последнее обновление
+            last_refresh = report.get('LastRefreshDisplay', '')
+            table.setItem(row, 7, QTableWidgetItem(last_refresh))
+            
+            # Следующее обновление
+            next_refresh = report.get('NextRefreshDisplay', '')
+            table.setItem(row, 8, QTableWidgetItem(next_refresh))
+            
+            # Создатель
+            created_by = report.get('CreatedBy', '')
+            table.setItem(row, 9, QTableWidgetItem(created_by))
         
         # Автоматически подгоняем ширину колонок
         table.resizeColumnsToContents()
@@ -357,22 +509,24 @@ class PowerBIMonitorUI(QMainWindow):
     def update_tabs_visibility(self):
         """
         Обновляет видимость вкладок в зависимости от текущего режима.
-        В режиме server скрывает вкладки "Обзор" и "Детали", показывает "Отчёты PBIRS".
-        В режиме service показывает "Обзор" и "Детали", скрывает "Отчёты PBIRS".
+        В режиме server скрывает вкладки "Обзор" и "Детали", показывает "Отчёты PBIRS" и "Источники PBIRS".
+        В режиме service показывает "Обзор" и "Детали", скрывает "Отчёты PBIRS" и "Источники PBIRS".
         """
         if not hasattr(self, 'tab_widget'):
             return
         
         if self.current_mode == 'server':
-            # Скрываем вкладки 0 и 1, показываем вкладку 2
+            # Скрываем вкладки 0 и 1, показываем вкладки 2 и 3
             self.tab_widget.setTabVisible(0, False)  # Обзор
             self.tab_widget.setTabVisible(1, False)  # Детали
             self.tab_widget.setTabVisible(2, True)   # Отчёты PBIRS
+            self.tab_widget.setTabVisible(3, True)   # Источники PBIRS
         else:
-            # Показываем вкладки 0 и 1, скрываем вкладку 2
+            # Показываем вкладки 0 и 1, скрываем вкладки 2 и 3
             self.tab_widget.setTabVisible(0, True)
             self.tab_widget.setTabVisible(1, True)
             self.tab_widget.setTabVisible(2, False)
+            self.tab_widget.setTabVisible(3, False)
     
     def refresh_data(self):
         """Обновление данных."""
@@ -429,6 +583,108 @@ class PowerBIMonitorUI(QMainWindow):
     def on_pbirs_name_filter_changed(self):
         """Обработчик изменения текста в поле фильтра по названию отчета PBIRS."""
         return self.ui_operations.on_pbirs_name_filter_changed()
+    
+    def on_pbirs_sources_filter_changed(self):
+        """Обработчик изменения фильтров на вкладке источников данных PBIRS."""
+        return self.ui_operations.on_pbirs_sources_filter_changed()
+    
+    def on_pbirs_details_filter_changed(self):
+        """Обработчик изменения фильтра на вкладке детальной информации PBIRS."""
+        return self.ui_operations.on_pbirs_details_filter_changed()
+    
+    def on_pbirs_report_double_clicked(self, index):
+        """Обработчик двойного клика на отчете PBIRS для открытия детальной информации."""
+        # Определяем, из какой таблицы пришел сигнал
+        sender_table = self.sender()
+        if not sender_table:
+            # Если sender не определен, используем таблицу отчетов по умолчанию
+            if hasattr(self, 'pbirs_reports_table'):
+                table = self.pbirs_reports_table
+            else:
+                return
+        else:
+            table = sender_table
+        
+        row = index.row()
+        
+        if row < 0 or row >= table.rowCount():
+            return
+        
+        # Получаем данные отчета из userData
+        item = table.item(row, 0)
+        if not item:
+            return
+        
+        report_data = item.data(Qt.ItemDataRole.UserRole)
+        if not report_data:
+            return
+        
+        # Открываем диалоговое окно с детальной информацией
+        self.show_report_details_dialog(report_data)
+    
+    def show_report_details_dialog(self, report_data):
+        """Открывает диалоговое окно с детальной информацией об отчете."""
+        dialog = QDialog(self)
+        dialog.setWindowTitle(f"Детали отчета: {report_data.get('Name', 'Без имени')}")
+        dialog.setMinimumWidth(600)
+        
+        layout = QVBoxLayout(dialog)
+        
+        # Форма с основными полями
+        form = QFormLayout()
+        
+        # Основные поля
+        fields = [
+            ("Название", report_data.get('Name', 'Нет данных')),
+            ("Путь", report_data.get('Path', 'Нет данных')),
+            ("Тип отчета", report_data.get('ReportTypeDisplay', report_data.get('Type', 'Нет данных'))),
+            ("Размер", report_data.get('SizeDisplay', '0 МБ')),
+            ("Папка", report_data.get('FolderDisplay', '/')),
+            ("Описание", report_data.get('Description', 'Нет описания')),
+            ("Создатель", report_data.get('CreatedBy', 'Неизвестно')),
+            ("Дата создания", report_data.get('CreationDate', 'Нет данных')),
+        ]
+        
+        for label, value in fields:
+            form.addRow(QLabel(f"<b>{label}:</b>"), QLabel(str(value)))
+        
+        # Источники данных
+        data_sources = report_data.get('DataSourcesList', [])
+        if data_sources:
+            sources_text = "\n".join([
+                f"{ds.get('Name', 'Без имени')} ({ds.get('DataSourceType', 'Unknown')})"
+                for ds in data_sources if ds
+            ])
+        else:
+            sources_text = "Нет источников данных"
+        
+        form.addRow(QLabel("<b>Источники данных:</b>"), QLabel(sources_text))
+        
+        # Планы обновления кэша
+        refresh_plans = report_data.get('RefreshPlansDetails', [])
+        if refresh_plans:
+            plans_text = "\n".join([
+                f"{plan.get('Name', 'Без имени')}: {plan.get('RecurrenceDescription', 'Без расписания')}"
+                for plan in refresh_plans
+            ])
+        else:
+            plans_text = "Нет планов обновления кэша"
+        
+        form.addRow(QLabel("<b>Планы обновления:</b>"), QLabel(plans_text))
+        
+        # Последний статус и время
+        form.addRow(QLabel("<b>Последний статус:</b>"), QLabel(report_data.get('LastStatus', 'Не запускался')))
+        form.addRow(QLabel("<b>Последнее обновление:</b>"), QLabel(report_data.get('LastRunDisplay', 'Никогда')))
+        form.addRow(QLabel("<b>Следующее обновление:</b>"), QLabel(report_data.get('NextRunDisplay', 'Не запланировано')))
+        
+        layout.addLayout(form)
+        
+        # Кнопка закрытия
+        close_btn = QPushButton("Закрыть")
+        close_btn.clicked.connect(dialog.accept)
+        layout.addWidget(close_btn)
+        
+        dialog.exec()
     
     def on_details_dataset_selected(self, index):
         """Обработчик выбора датасета в комбобоксе на вкладке детали."""

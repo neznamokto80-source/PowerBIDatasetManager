@@ -6,13 +6,16 @@
 """
 
 import logging
+import traceback
 from typing import List, Dict, Any
 
 from PyQt6.QtWidgets import QMessageBox
+from PyQt6.QtCore import Qt
 
 from src.core.powerbi_report_server_client import PowerBIReportServerClient
 from src.core.connection_manager import ConnectionManager
 from src.operations.base_operations import BaseOperations
+from src.utils.pbirs_data_enricher import enrich_reports_list, extract_data_sources_for_table
 
 logger = logging.getLogger(__name__)
 
@@ -131,19 +134,23 @@ class PBIRSOperations(BaseOperations):
         return self.initialize_backend_pbirs(server_url.strip(), username, password)
     
     def load_pbirs_reports(self):
-        """Загружает отчеты Power BI Report Server."""
-        if not self.main_window.client or not hasattr(self.main_window.client, 'get_powerbi_reports'):
+        """Загружает отчеты Power BI Report Server с расширенными данными (источники, расписания)."""
+        if not self.main_window.client or not hasattr(self.main_window.client, 'get_extended_reports'):
             return
         
         try:
-            reports = self.main_window.client.get_powerbi_reports()
+            # Используем новый метод для получения расширенных данных
+            reports = self.main_window.client.get_extended_reports(include_ssrs=True)
             self.main_window.log_message(f"✓ Загружено отчетов Power BI Report Server: {len(reports)}")
             
-            # Сохраняем отчеты для использования в UI
-            self.main_window.pbirs_reports = reports
+            # Обогащаем данные отчетов (добавляем вычисляемые поля)
+            enriched_reports = enrich_reports_list(reports)
+            
+            # Сохраняем обогащенные отчеты для использования в UI
+            self.main_window.pbirs_reports = enriched_reports
             
             # Извлекаем папки и обновляем комбобокс
-            folders = self._extract_folders_from_reports(reports)
+            folders = self._extract_folders_from_reports(enriched_reports)
             self.main_window.pbirs_folders = folders
             # Вызываем метод обновления UI (если он существует)
             if hasattr(self.main_window, 'update_folders_combo'):
@@ -155,13 +162,14 @@ class PBIRSOperations(BaseOperations):
                     self.main_window.log_message(f"    - {folder}")
             
             # Временно выводим информацию в лог
-            for i, report in enumerate(reports[:5]):  # Первые 5 отчетов
+            for i, report in enumerate(enriched_reports[:5]):  # Первые 5 отчетов
                 name = report.get('Name', 'Без имени')
                 report_id = report.get('Id', 'N/A')
-                self.main_window.log_message(f"  {i+1}. {name} (ID: {report_id[:20]}...)")
+                sources = report.get('DataSourcesBrief', 'Нет источников')
+                self.main_window.log_message(f"  {i+1}. {name} (ID: {report_id[:20]}...) - {sources}")
             
-            if len(reports) > 5:
-                self.main_window.log_message(f"  ... и еще {len(reports) - 5} отчетов")
+            if len(enriched_reports) > 5:
+                self.main_window.log_message(f"  ... и еще {len(enriched_reports) - 5} отчетов")
             
             # Обновляем таблицу отчётов в UI с учетом текущего выбора папки и фильтра по названию
             if hasattr(self.main_window, 'update_pbirs_reports_table'):
@@ -173,31 +181,94 @@ class PBIRSOperations(BaseOperations):
                 name_filter = None
                 if hasattr(self.main_window, 'pbirs_report_name_filter'):
                     name_filter = self.main_window.pbirs_report_name_filter.text()
-                self.main_window.update_pbirs_reports_table(reports, selected_folder, name_filter)
+                self.main_window.update_pbirs_reports_table(enriched_reports, selected_folder, name_filter)
                 self.main_window.log_message("✓ Таблица отчётов PBIRS обновлена")
             
-            # Асинхронно загружаем источники данных для отчётов (первые 10)
-            # Чтобы не блокировать UI, можно запустить в отдельном потоке
-            # Пока просто логируем
-            if reports and hasattr(self.main_window.client, 'get_report_data_sources'):
-                self.main_window.log_message("  Загрузка источников данных для отчётов...")
-                # Для демонстрации загрузим для первого отчёта
-                if len(reports) > 0:
-                    first_report = reports[0]
-                    report_id = first_report.get('Id')
-                    if report_id:
-                        try:
-                            data_sources = self.main_window.client.get_report_data_sources(report_id)
-                            self.main_window.log_message(f"    Для отчёта '{first_report.get('Name')}' найдено источников: {len(data_sources)}")
-                            for ds in data_sources[:3]:
-                                ds_name = ds.get('Name', 'Без имени')
-                                ds_type = ds.get('DataSourceType', 'Unknown')
-                                self.main_window.log_message(f"      - {ds_name} ({ds_type})")
-                        except Exception as e:
-                            self.main_window.log_message(f"    Ошибка загрузки источников данных: {e}")
+            # Формируем данные для вкладки источников
+            sources_data = []
+            for report in enriched_reports:
+                folder = report.get('FolderDisplay', '/')
+                report_name = report.get('Name', 'Без имени')
+                data_sources = report.get('DataSourcesList', [])
+                for ds in data_sources:
+                    if ds is None:
+                        continue
+                    # Извлекаем имя источника данных, гарантируя, что это строка
+                    ds_name = ds.get('Name', 'Без имени')
+                    if not isinstance(ds_name, str):
+                        ds_name = str(ds_name)
+                    source_item = {
+                        'Folder': folder,
+                        'ReportName': report_name,
+                        'DataSource': ds_name,
+                        'ConnectionString': ds.get('ConnectionString', ''),
+                        'DataSourceType': ds.get('DataSourceType', 'Unknown')
+                    }
+                    sources_data.append(source_item)
+            
+            # Сохраняем данные источников для использования в UI
+            self.main_window.pbirs_sources_data = sources_data
+            
+            # Обновляем таблицу источников в UI
+            if hasattr(self.main_window, 'update_pbirs_sources_table'):
+                # Определяем текущие фильтры (если поля существуют)
+                report_filter = None
+                source_filter = None
+                if hasattr(self.main_window, 'pbirs_sources_report_filter'):
+                    report_filter = self.main_window.pbirs_sources_report_filter.text()
+                if hasattr(self.main_window, 'pbirs_sources_source_filter'):
+                    index = self.main_window.pbirs_sources_source_filter.currentIndex()
+                    if index >= 0:
+                        source_filter = self.main_window.pbirs_sources_source_filter.currentText()
+                        if source_filter == "Все источники":
+                            source_filter = None
                 
+                self.main_window.update_pbirs_sources_table(sources_data, report_filter, source_filter)
+                self.main_window.log_message(f"✓ Таблица источников PBIRS обновлена (записей: {len(sources_data)})")
+            
+            # Заполняем комбобокс фильтра ConnectionString уникальными значениями
+            if hasattr(self.main_window, 'pbirs_sources_source_filter'):
+                combo = self.main_window.pbirs_sources_source_filter
+                combo.clear()
+                combo.addItem("Все источники")
+                # Собираем уникальные ConnectionString
+                unique_connections = set()
+                for source_item in sources_data:
+                    connection_string = source_item.get('ConnectionString', '')
+                    if connection_string:
+                        # Убедимся, что connection_string - строка (хэшируемый тип)
+                        if not isinstance(connection_string, str):
+                            try:
+                                connection_string = str(connection_string)
+                            except Exception:
+                                # Если не удается преобразовать, пропускаем
+                                self.main_window.log_message(f"⚠ Невозможно преобразовать ConnectionString: {type(connection_string)}")
+                                continue
+                        unique_connections.add(connection_string)
+                for conn_string in sorted(unique_connections):
+                    # Обрезаем длинные строки для отображения в комбобоксе
+                    display_string = conn_string
+                    if len(display_string) > 100:
+                        display_string = display_string[:97] + '...'
+                    combo.addItem(display_string)
+                    # Сохраняем полный ConnectionString в userData
+                    combo.setItemData(combo.count() - 1, conn_string, Qt.ItemDataRole.UserRole)
+                self.main_window.log_message(f"  Заполнен фильтр ConnectionString: {len(unique_connections)} уникальных значений")
+            
+            # Обновляем таблицу детальной информации PBIRS
+            if hasattr(self.main_window, 'update_pbirs_details_table'):
+                # Сохраняем данные для фильтрации
+                self.main_window.pbirs_details_data = enriched_reports
+                # Определяем текущий фильтр по названию (если поле существует)
+                name_filter = None
+                if hasattr(self.main_window, 'pbirs_details_name_filter'):
+                    name_filter = self.main_window.pbirs_details_name_filter.text()
+                self.main_window.update_pbirs_details_table(enriched_reports, name_filter)
+                self.main_window.log_message("✓ Таблица деталей PBIRS обновлена")
+            
         except Exception as e:
             self.main_window.log_message(f"✗ Ошибка при загрузке отчетов PBIRS: {e}")
+            self.main_window.log_message(f"Детали ошибки: {traceback.format_exc()}")
     
     def _extract_folders_from_reports(self, reports: list) -> list:
         """
@@ -214,6 +285,9 @@ class PBIRSOperations(BaseOperations):
         for report in reports:
             path = report.get('Path', '')
             if path:
+                # Убедимся, что path - строка
+                if not isinstance(path, str):
+                    path = str(path)
                 # Путь вида "/folder/subfolder/report"
                 # Добавляем все родительские директории
                 parts = path.strip('/').split('/')

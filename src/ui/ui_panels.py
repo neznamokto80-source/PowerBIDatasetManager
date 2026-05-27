@@ -149,6 +149,10 @@ class UIPanels:
         pbirs_reports_tab = self.create_pbirs_reports_tab()
         self.main.tab_widget.addTab(pbirs_reports_tab, "Отчёты PBIRS")
         
+        # Вкладка "Источники PBIRS" (скрыта по умолчанию, показывается только в режиме server)
+        pbirs_sources_tab = self.create_pbirs_sources_tab()
+        self.main.tab_widget.addTab(pbirs_sources_tab, "Источники PBIRS")
+        
         # Вкладка "История обновлений" удалена по требованию
         # history_tab = self.create_history_tab()
         # self.main.tab_widget.addTab(history_tab, "История")
@@ -467,9 +471,10 @@ class UIPanels:
         
         # Таблица отчетов
         self.main.pbirs_reports_table = QTableWidget()
-        self.main.pbirs_reports_table.setColumnCount(6)
+        self.main.pbirs_reports_table.setColumnCount(8)
         self.main.pbirs_reports_table.setHorizontalHeaderLabels([
-            "Папка", "Название отчета", "Размер (МБ)", "Тип отчета", "Описание", "Источники данных"
+            "Папка", "Название отчета", "Размер (МБ)", "Тип отчета", "Источники данных",
+            "Последний статус", "Последнее обновление", "Следующее обновление"
         ])
         # Настройка ширины колонок
         header = self.main.pbirs_reports_table.horizontalHeader()
@@ -477,17 +482,79 @@ class UIPanels:
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)  # Название
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)  # Размер
         header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)  # Тип
-        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)  # Описание
-        header.setSectionResizeMode(5, QHeaderView.ResizeMode.Stretch)  # Источники
+        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)  # Источники данных
+        header.setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)  # Последний статус
+        header.setSectionResizeMode(6, QHeaderView.ResizeMode.ResizeToContents)  # Последнее обновление
+        header.setSectionResizeMode(7, QHeaderView.ResizeMode.ResizeToContents)  # Следующее обновление
         
         self.main.pbirs_reports_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.main.pbirs_reports_table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
-        # TODO: подключить контекстное меню для отчетов
+        # Подключаем обработчик двойного клика
+        self.main.pbirs_reports_table.doubleClicked.connect(self.main.on_pbirs_report_double_clicked)
         
         layout.addWidget(self.main.pbirs_reports_table)
         
         # Кнопка обновления отчетов
         refresh_btn = QPushButton("Обновить отчеты")
+        refresh_btn.clicked.connect(self.main.load_pbirs_reports)
+        layout.addWidget(refresh_btn)
+        
+        return tab
+    
+    def create_pbirs_sources_tab(self):
+        """Создает вкладку для отображения источников данных Power BI Report Server."""
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        
+        # Панель фильтров
+        filter_layout = QHBoxLayout()
+        
+        # Фильтр по названию отчета
+        report_filter_label = QLabel("Название отчета:")
+        self.main.pbirs_sources_report_filter = QLineEdit()
+        self.main.pbirs_sources_report_filter.setPlaceholderText("Введите часть названия отчета...")
+        # Подключаем фильтрацию по мере ввода
+        self.main.pbirs_sources_report_filter.textChanged.connect(self.main.on_pbirs_sources_filter_changed)
+        filter_layout.addWidget(report_filter_label)
+        filter_layout.addWidget(self.main.pbirs_sources_report_filter)
+        
+        # Фильтр по ConnectionString
+        source_filter_label = QLabel("ConnectionString:")
+        self.main.pbirs_sources_source_filter = QComboBox()
+        self.main.pbirs_sources_source_filter.setEditable(True)
+        self.main.pbirs_sources_source_filter.setPlaceholderText("Введите часть ConnectionString...")
+        # Подключаем фильтрацию по мере ввода
+        self.main.pbirs_sources_source_filter.currentIndexChanged.connect(self.main.on_pbirs_sources_filter_changed)
+        self.main.pbirs_sources_source_filter.editTextChanged.connect(self.main.on_pbirs_sources_filter_changed)
+        filter_layout.addWidget(source_filter_label)
+        filter_layout.addWidget(self.main.pbirs_sources_source_filter)
+        
+        # Кнопка применения фильтров (оставляем для удобства)
+        apply_filter_btn = QPushButton("Применить фильтры")
+        apply_filter_btn.clicked.connect(self.main.on_pbirs_sources_filter_changed)
+        filter_layout.addWidget(apply_filter_btn)
+        
+        layout.addLayout(filter_layout)
+        
+        # Таблица источников данных
+        self.main.pbirs_sources_table = QTableWidget()
+        self.main.pbirs_sources_table.setColumnCount(3)
+        self.main.pbirs_sources_table.setHorizontalHeaderLabels([
+            "Папка", "Название отчета", "ConnectionString"
+        ])
+        # Настройка ширины колонок
+        header = self.main.pbirs_sources_table.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)  # Папка
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)  # Название отчета
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)  # ConnectionString
+        
+        self.main.pbirs_sources_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.main.pbirs_sources_table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        
+        layout.addWidget(self.main.pbirs_sources_table)
+        
+        # Кнопка обновления источников
+        refresh_btn = QPushButton("Обновить источники")
         refresh_btn.clicked.connect(self.main.load_pbirs_reports)
         layout.addWidget(refresh_btn)
         

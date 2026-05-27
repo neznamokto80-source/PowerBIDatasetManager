@@ -247,6 +247,109 @@ class UIOperations:
                 
                 self.main_window.log_message(f"Отфильтровано отчетов: {len(filtered)} (фильтр: '{name_filter or 'нет'}')")
 
+    def on_pbirs_sources_filter_changed(self):
+        """Обработчик изменения фильтров на вкладке источников данных PBIRS."""
+        if self.main_window.current_mode != 'server':
+            return
+        
+        # Получаем фильтр по названию отчета
+        report_filter = None
+        if hasattr(self.main_window, 'pbirs_sources_report_filter'):
+            text = self.main_window.pbirs_sources_report_filter.text().strip()
+            if text:
+                report_filter = text
+        
+        # Получаем фильтр по ConnectionString
+        source_filter = None
+        if hasattr(self.main_window, 'pbirs_sources_source_filter'):
+            combo = self.main_window.pbirs_sources_source_filter
+            index = combo.currentIndex()
+            if index >= 0:
+                # Пытаемся получить полный ConnectionString из userData
+                full_connection = combo.itemData(index, Qt.ItemDataRole.UserRole)
+                if full_connection and isinstance(full_connection, str):
+                    source_filter = full_connection.strip()
+                else:
+                    source_filter = combo.currentText().strip()
+                
+                if not source_filter or source_filter == "Все источники":
+                    source_filter = None
+        
+        # Применяем фильтрацию к таблице источников
+        if hasattr(self.main_window, 'pbirs_sources_data'):
+            sources_data = self.main_window.pbirs_sources_data
+            if hasattr(self.main_window, 'update_pbirs_sources_table'):
+                self.main_window.update_pbirs_sources_table(sources_data, report_filter, source_filter)
+                self.main_window.log_message(
+                    f"Фильтр источников обновлен: отчет='{report_filter or 'нет'}', ConnectionString='{source_filter or 'нет'}'"
+                )
+            else:
+                # Резервная логика фильтрации
+                filtered = []
+                for source_item in sources_data:
+                    folder = source_item.get('Folder', '')
+                    report_name = source_item.get('ReportName', '')
+                    connection_string = source_item.get('ConnectionString', '')
+                    
+                    # Проверяем фильтр по названию отчета
+                    report_match = True
+                    if report_filter:
+                        report_match = report_filter.lower() in report_name.lower()
+                    
+                    # Проверяем фильтр по ConnectionString
+                    source_match = True
+                    if source_filter:
+                        filter_lower = source_filter.lower()
+                        connection_string_lower = connection_string.lower()
+                        source_match = filter_lower in connection_string_lower
+                    
+                    if report_match and source_match:
+                        filtered.append(source_item)
+                
+                self.main_window.log_message(
+                    f"Отфильтровано источников: {len(filtered)} "
+                    f"(отчет: '{report_filter or 'нет'}', ConnectionString: '{source_filter or 'нет'}')"
+                )
+
+    def on_pbirs_details_filter_changed(self):
+        """Обработчик изменения фильтра на вкладке детальной информации PBIRS."""
+        if self.main_window.current_mode != 'server':
+            return
+        
+        # Получаем фильтр по названию отчета
+        name_filter = None
+        if hasattr(self.main_window, 'pbirs_details_name_filter'):
+            text = self.main_window.pbirs_details_name_filter.text().strip()
+            if text:
+                name_filter = text
+        
+        # Применяем фильтрацию к таблице деталей
+        if hasattr(self.main_window, 'pbirs_details_data'):
+            details_data = self.main_window.pbirs_details_data
+            if hasattr(self.main_window, 'update_pbirs_details_table'):
+                self.main_window.update_pbirs_details_table(details_data, name_filter)
+                self.main_window.log_message(
+                    f"Фильтр деталей обновлен: название='{name_filter or 'нет'}'"
+                )
+            else:
+                # Резервная логика фильтрации
+                filtered = []
+                for report in details_data:
+                    report_name = report.get('Name', '')
+                    
+                    # Проверяем фильтр по названию отчета
+                    name_match = True
+                    if name_filter:
+                        name_match = name_filter.lower() in report_name.lower()
+                    
+                    if name_match:
+                        filtered.append(report)
+                
+                self.main_window.log_message(
+                    f"Отфильтровано отчетов: {len(filtered)} "
+                    f"(название: '{name_filter or 'нет'}')"
+                )
+
     def on_dataset_selected(self, item, column):
         """Обработчик выбора датасета."""
         if not item:

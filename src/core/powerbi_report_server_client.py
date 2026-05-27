@@ -11,6 +11,7 @@ import json
 import requests
 from datetime import datetime
 from typing import Optional, Dict, Any, List, Union
+from urllib.parse import urljoin
 
 logger = logging.getLogger(__name__)
 
@@ -190,6 +191,86 @@ class PowerBIReportServerClient:
         except Exception as e:
             logger.error(f"Ошибка при получении списка отчетов: {e}")
             return []
+    
+    def get_extended_reports(self, include_ssrs: bool = True) -> List[Dict[str, Any]]:
+        """
+        Получает расширенные данные отчетов с источниками данных и расписаниями.
+        Адаптировано из предоставленного скрипта.
+        
+        Args:
+            include_ssrs: Включать ли SSRS отчеты (тип "Reports")
+        
+        Returns:
+            Список отчетов с расширенными данными
+        """
+        try:
+            # Функция для получения CacheRefreshPlans с историей
+            def get_cache_refresh_plans_for_report(report_type: str, report_id: str):
+                """Запрашивает CacheRefreshPlans для конкретного отчёта."""
+                try:
+                    # Получаем планы обновления кэша
+                    plans_data = self._make_request(f"{report_type}({report_id})/CacheRefreshPlans")
+                    plans = plans_data.get("value", [])
+                    
+                    # Для каждого плана загружаем историю
+                    for plan in plans:
+                        plan_id = plan.get("Id")
+                        if plan_id:
+                            try:
+                                history_data = self._make_request(f"CacheRefreshPlans({plan_id})/History")
+                                plan["History"] = history_data.get("value", [])
+                            except Exception:
+                                plan["History"] = []
+                    return plans
+                except Exception as e:
+                    logger.debug(f"Ошибка получения CacheRefreshPlans для {report_type}/{report_id}: {e}")
+                    return []
+            
+            all_items = []
+            
+            # Типы отчетов для загрузки
+            report_types = ["PowerBIReports"]
+            if include_ssrs:
+                report_types.append("Reports")
+            
+            for report_type in report_types:
+                try:
+                    # Получаем отчеты с расширенными данными (DataSources)
+                    params = {
+                        "$select": "Id,Name,Path,CreatedBy,Description,Size,Type",
+                        "$expand": "DataSources",
+                        "$format": "json"
+                    }
+                    
+                    # Используем существующий метод _make_request с параметрами
+                    data = self._make_request(report_type, params=params)
+                    items = data.get("value", [])
+                    
+                    # Для каждого отчёта загружаем расписания
+                    for item in items:
+                        report_id = item.get("Id")
+                        if report_id:
+                            plans = get_cache_refresh_plans_for_report(report_type, report_id)
+                            item["CacheRefreshPlans"] = plans
+                        else:
+                            item["CacheRefreshPlans"] = []
+                        
+                        # Добавляем тип отчета для идентификации
+                        item["ReportType"] = "PowerBIReport" if report_type == "PowerBIReports" else "SSRSReport"
+                    
+                    all_items.extend(items)
+                    
+                except Exception as e:
+                    logger.warning(f"Ошибка при загрузке отчетов типа {report_type}: {e}")
+                    # Продолжаем с другим типом отчетов
+            
+            logger.info(f"Загружено расширенных отчетов: {len(all_items)}")
+            return all_items
+            
+        except Exception as e:
+            logger.error(f"Ошибка при получении расширенных данных отчетов: {e}")
+            # Fallback на обычный метод
+            return self.get_powerbi_reports()
     
     def get_cache_refresh_plans(self, report_id: str) -> List[Dict[str, Any]]:
         """
