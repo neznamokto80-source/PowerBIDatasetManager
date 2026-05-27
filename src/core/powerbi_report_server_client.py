@@ -22,6 +22,12 @@ class PowerBIReportServerClient:
     # Коды успешных HTTP статусов
     SUCCESS_STATUS_CODES = {200, 201, 202, 204}
     
+    # Стандартные заголовки для запросов
+    DEFAULT_HEADERS = {
+        "Accept": "application/json",
+        "User-Agent": "PowerBI-Dataset-Monitor/1.0"
+    }
+    
     def __init__(self, server_url: str, username: str = None, password: str = None, 
                  use_session: bool = True, debug_data_path: Optional[str] = None):
         """
@@ -142,9 +148,14 @@ class PowerBIReportServerClient:
         """
         url = f"{self.base_url}/{endpoint}"
         
-        logger.debug(f"Выполнение запроса {method} {url}")
+        # Формируем заголовки запроса
+        headers = self.DEFAULT_HEADERS.copy()
         if data is not None:
+            headers["Content-Type"] = "application/json"
             logger.debug(f"Тело запроса: {data}")
+        
+        logger.debug(f"Выполнение запроса {method} {url}")
+        logger.debug(f"Заголовки запроса: {headers}")
         
         try:
             response = self.session.request(
@@ -154,12 +165,22 @@ class PowerBIReportServerClient:
                 json=data,
                 params=params,
                 timeout=timeout,
-                headers={"Content-Type": "application/json"} if data else {}
+                headers=headers
             )
         except requests.exceptions.RequestException as e:
             raise APIRequestError(f"Ошибка сети при запросе к {url}: {e}", status_code=None) from e
         
+        # Логируем заголовки ответа для отладки
+        logger.debug(f"Ответ от {url}: статус {response.status_code}, заголовки: {dict(response.headers)}")
+        
         if response.status_code not in self.SUCCESS_STATUS_CODES:
+            # Сохраняем сырые данные при ошибке
+            if self.debug_data_path:
+                self._save_raw_data(url, method, {
+                    "status_code": response.status_code,
+                    "headers": dict(response.headers),
+                    "body": response.text
+                }, response.status_code)
             raise APIRequestError(
                 f"Ошибка {response.status_code} при запросе к {url}: {response.text}",
                 status_code=response.status_code
