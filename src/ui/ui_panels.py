@@ -488,7 +488,7 @@ class UIPanels:
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)  # Размер
         header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)  # Тип
         header.setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)  # Источники данных - фиксированная ширина
-        header.resizeSection(4, 300)  # Устанавливаем ширину 300 пикселей
+        header.resizeSection(4, 200)  # Устанавливаем ширину 200 пикселей
         header.setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)  # Последний статус
         header.setSectionResizeMode(6, QHeaderView.ResizeMode.ResizeToContents)  # Последнее обновление
         header.setSectionResizeMode(7, QHeaderView.ResizeMode.ResizeToContents)  # Следующее обновление
@@ -583,211 +583,110 @@ class UIPanels:
         
         layout.addWidget(self.main.logs_text)
         return tab
-    
     def create_pbirs_details_tab(self):
-        """Создает вкладку детальной информации для отчетов PBIRS."""
+        """Создает вкладку детальной информации для отчетов PBIRS с таблицей расписаний."""
         tab = QWidget()
         layout = QVBoxLayout(tab)
-        
-        # 1. Верхняя панель выбора Отчета и действий
+
+        # Верхняя панель выбора отчета
         top_panel = QWidget()
         top_layout = QHBoxLayout(top_panel)
-        
-        # Выпадающий список для выбора отчета
         report_label = QLabel("Выберите Отчет:")
         self.main.pbirs_details_report_combo = QComboBox()
         self.main.pbirs_details_report_combo.setPlaceholderText("-- Выберите отчет --")
-        self.main.pbirs_details_report_combo.currentIndexChanged.connect(self.main.on_pbirs_details_report_selected)
-        
-        # Кнопки управления
-        self.main.pbirs_enable_btn = QPushButton("Включить обновление")
-        self.main.pbirs_enable_btn.clicked.connect(self.main.enable_pbirs_refresh)
-        self.main.pbirs_enable_btn.setEnabled(False)
-        
-        self.main.pbirs_disable_btn = QPushButton("Отключить обновление")
-        self.main.pbirs_disable_btn.clicked.connect(self.main.disable_pbirs_refresh)
-        self.main.pbirs_disable_btn.setEnabled(False)
-        
-        self.main.pbirs_manual_refresh_btn = QPushButton("Запустить обновление")
-        self.main.pbirs_manual_refresh_btn.clicked.connect(self.main.trigger_pbirs_manual_refresh)
-        self.main.pbirs_manual_refresh_btn.setEnabled(False)
-        
+        self.main.pbirs_details_report_combo.currentIndexChanged.connect(
+            self.main.on_pbirs_details_report_selected
+        )
         top_layout.addWidget(report_label)
-        top_layout.addWidget(self.main.pbirs_details_report_combo, 2)  # Растягиваем комбобокс
-        top_layout.addWidget(self.main.pbirs_enable_btn)
-        top_layout.addWidget(self.main.pbirs_disable_btn)
-        top_layout.addWidget(self.main.pbirs_manual_refresh_btn)
+        top_layout.addWidget(self.main.pbirs_details_report_combo, 2)
         top_layout.addStretch()
-        
         layout.addWidget(top_panel)
-        
-        # 2. Блок «Информация о Отчете» и «Управление расписанием» в горизонтальном layout
-        middle_panel = QWidget()
-        middle_layout = QHBoxLayout(middle_panel)
-        
-        # Левый блок: Информация об отчете (примерно 1/3 ширины)
+
+        # Блок информации об отчете (две колонки)
         info_group = QGroupBox("Информация об Отчете")
-        info_layout = QVBoxLayout()
-        
-        # Форма с информацией
-        info_form = QFormLayout()
-        
+        info_layout = QHBoxLayout()
+
+        # Левая колонка
+        left_form = QFormLayout()
         self.main.pbirs_detail_name = QLabel("-")
-        info_form.addRow("Название:", self.main.pbirs_detail_name)
-        
+        left_form.addRow("Название:", self.main.pbirs_detail_name)
         self.main.pbirs_detail_id = QLabel("-")
-        info_form.addRow("PowerBIReport ID:", self.main.pbirs_detail_id)
-        
+        left_form.addRow("PowerBIReport ID:", self.main.pbirs_detail_id)
         self.main.pbirs_detail_folder = QLabel("-")
-        info_form.addRow("Папка:", self.main.pbirs_detail_folder)
-        
+        left_form.addRow("Папка:", self.main.pbirs_detail_folder)
         self.main.pbirs_detail_creator = QLabel("-")
-        info_form.addRow("Создатель:", self.main.pbirs_detail_creator)
-        
+        left_form.addRow("Создатель:", self.main.pbirs_detail_creator)
+        # Новые поля
+        self.main.pbirs_detail_created_date = QLabel("-")
+        left_form.addRow("Дата создания:", self.main.pbirs_detail_created_date)
+        self.main.pbirs_detail_modified_by = QLabel("-")
+        left_form.addRow("Кем изменён:", self.main.pbirs_detail_modified_by)
+        self.main.pbirs_detail_modified_date = QLabel("-")
+        left_form.addRow("Дата изменения:", self.main.pbirs_detail_modified_date)
+        # Правая колонка
+        right_form = QFormLayout()
+        #self.main.pbirs_detail_sources = QLabel("-")
+        #self.main.pbirs_detail_sources.setWordWrap(True)
         self.main.pbirs_detail_sources = QLabel("-")
         self.main.pbirs_detail_sources.setWordWrap(True)
-        self.main.pbirs_detail_sources.setMaximumWidth(400)  # Ограничиваем ширину
-        self.main.pbirs_detail_sources.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        info_form.addRow("Источники данных:", self.main.pbirs_detail_sources)
-        
+        self.main.pbirs_detail_sources.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        right_form.addRow("Источники данных:", self.main.pbirs_detail_sources)        
+        #right_form.addRow("Источники данных:", self.main.pbirs_detail_sources)
         self.main.pbirs_detail_refresh_status = QLabel("-")
-        info_form.addRow("Статус обновления:", self.main.pbirs_detail_refresh_status)
-        
+        right_form.addRow("Статус обновления:", self.main.pbirs_detail_refresh_status)
         self.main.pbirs_detail_last_refresh = QLabel("-")
-        info_form.addRow("Последнее обновление:", self.main.pbirs_detail_last_refresh)
-        
+        right_form.addRow("Последнее обновление:", self.main.pbirs_detail_last_refresh)
         self.main.pbirs_detail_next_refresh = QLabel("-")
-        info_form.addRow("Следующее обновление:", self.main.pbirs_detail_next_refresh)
+        right_form.addRow("Следующее обновление:", self.main.pbirs_detail_next_refresh)
         
-        info_layout.addLayout(info_form)
-        info_layout.addStretch()
+
+
+        info_layout.addLayout(left_form)
+        sep = QFrame()
+        sep.setFrameShape(QFrame.Shape.VLine)
+        sep.setFrameShadow(QFrame.Shadow.Sunken)
+        info_layout.addWidget(sep)
+        info_layout.addLayout(right_form)
         info_group.setLayout(info_layout)
-        middle_layout.addWidget(info_group, 1)  # 1 часть ширины
+        layout.addWidget(info_group, 4)
+
+        # Блок расписаний обновления
+        plans_group = QGroupBox("Расписания обновления (Cache Refresh Plans)")
+        plans_layout = QVBoxLayout()
         
-        # Правый блок: Управление расписанием (примерно 2/3 ширины)
-        schedule_panel = QWidget()
-        schedule_layout = QVBoxLayout(schedule_panel)
+        self.main.pbirs_refresh_plans_table = QTableWidget()
+        self.main.pbirs_refresh_plans_table.setColumnCount(5)
+        self.main.pbirs_refresh_plans_table.setHorizontalHeaderLabels([
+            "Название", "Расписание", "Последний запуск", "Статус", "Следующий запуск"
+        ])
+        header = self.main.pbirs_refresh_plans_table.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
+        self.main.pbirs_refresh_plans_table.verticalHeader().setVisible(False)
+        self.main.pbirs_refresh_plans_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.main.pbirs_refresh_plans_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         
-        # 3.1 Раздел «Дни недели» и «Время срабатывания» в горизонтальном layout
-        days_times_panel = QWidget()
-        days_times_layout = QHBoxLayout(days_times_panel)
-        
-        # Дни недели (левая колонка)
-        days_group = QGroupBox("Дни недели")
-        days_grid = QGridLayout()
-        
-        self.main.pbirs_schedule_day_checks = {}
-        DAY_LABELS_RU = [
-            "Воскресенье", "Понедельник", "Вторник", "Среда",
-            "Четверг", "Пятница", "Суббота"
-        ]
-        DAY_NAMES_API = [
-            "Sunday", "Monday", "Tuesday", "Wednesday",
-            "Thursday", "Friday", "Saturday"
-        ]
-        
-        for i, (api_name, ru) in enumerate(zip(DAY_NAMES_API, DAY_LABELS_RU)):
-            cb = QCheckBox(ru)
-            self.main.pbirs_schedule_day_checks[api_name] = cb
-            row = i % 4  # 4 строки в первой колонке
-            col = 0 if i < 4 else 1
-            days_grid.addWidget(cb, row, col)
-        
-        days_group.setLayout(days_grid)
-        days_times_layout.addWidget(days_group)
-        
-        # Время срабатывания (правая часть)
-        times_group = QGroupBox("Время срабатывания (локальное время выбранного пояса)")
-        times_layout = QVBoxLayout()
-        
-        # Список времени
-        self.main.pbirs_schedule_times_list = QListWidget()
-        self.main.pbirs_schedule_times_list.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
-        self.main.pbirs_schedule_times_list.setFixedHeight(150)
-        times_layout.addWidget(self.main.pbirs_schedule_times_list)
-        
-        # Панель управления временем
-        time_edit_panel = QWidget()
-        time_edit_layout = QHBoxLayout(time_edit_panel)
-        
-        time_edit_layout.addWidget(QLabel("Часы:"))
-        self.main.pbirs_schedule_hours_combo = QComboBox()
-        self.main.pbirs_schedule_hours_combo.addItems([f"{i:02d}" for i in range(24)])
-        time_edit_layout.addWidget(self.main.pbirs_schedule_hours_combo)
-        
-        time_edit_layout.addWidget(QLabel("Минуты:"))
-        self.main.pbirs_schedule_minutes_combo = QComboBox()
-        self.main.pbirs_schedule_minutes_combo.addItems(["00", "30"])
-        time_edit_layout.addWidget(self.main.pbirs_schedule_minutes_combo)
-        
-        self.main.pbirs_schedule_add_time_btn = QPushButton("Добавить время")
-        self.main.pbirs_schedule_add_time_btn.clicked.connect(self.main.add_pbirs_schedule_time)
-        time_edit_layout.addWidget(self.main.pbirs_schedule_add_time_btn)
-        
-        self.main.pbirs_schedule_remove_time_btn = QPushButton("Удалить выбранное")
-        self.main.pbirs_schedule_remove_time_btn.clicked.connect(self.main.remove_pbirs_schedule_time)
-        time_edit_layout.addWidget(self.main.pbirs_schedule_remove_time_btn)
-        
-        time_edit_layout.addStretch()
-        times_layout.addWidget(time_edit_panel)
-        
-        times_group.setLayout(times_layout)
-        days_times_layout.addWidget(times_group, 2)  # Больше места для времени
-        
-        schedule_layout.addWidget(days_times_panel)
-        
-        # 4. Блок «Настройки расписания»
-        settings_group = QGroupBox("Настройки расписания")
-        settings_layout = QVBoxLayout()
-        
-        # Форма настроек
-        settings_form = QFormLayout()
-        
-        self.main.pbirs_schedule_tz_combo = QComboBox()
-        self.main.pbirs_schedule_tz_combo.setEditable(True)
-        DEFAULT_TIMEZONES = [
-            "UTC", "Russian Standard Time", "Central Asia Standard Time",
-            "Ekaterinburg Standard Time", "W. Europe Standard Time",
-            "Central European Standard Time", "GMT Standard Time",
-            "Eastern Standard Time", "Pacific Standard Time"
-        ]
-        self.main.pbirs_schedule_tz_combo.addItems(DEFAULT_TIMEZONES)
-        self.main.pbirs_schedule_tz_combo.setCurrentText("Central Asia Standard Time")
-        settings_form.addRow("Часовой пояс (Windows):", self.main.pbirs_schedule_tz_combo)
-        
-        self.main.pbirs_schedule_notify_cb = QCheckBox("Почта при ошибке")
-        self.main.pbirs_schedule_notify_cb.setChecked(True)
-        settings_form.addRow("Уведомления:", self.main.pbirs_schedule_notify_cb)
-        
-        self.main.pbirs_schedule_enabled_cb = QCheckBox("Расписание включено")
-        self.main.pbirs_schedule_enabled_cb.setChecked(True)
-        settings_form.addRow("", self.main.pbirs_schedule_enabled_cb)
-        
-        settings_layout.addLayout(settings_form)
-        
+        plans_layout.addWidget(self.main.pbirs_refresh_plans_table)
+        plans_group.setLayout(plans_layout)
+        layout.addWidget(plans_group, 4)
+
         # Кнопки сохранения/удаления
-        buttons_layout = QHBoxLayout()
+        button_widget = QWidget()
+        buttons_layout = QHBoxLayout(button_widget)
         self.main.pbirs_schedule_save_btn = QPushButton("Сохранить расписание")
         self.main.pbirs_schedule_save_btn.clicked.connect(self.main.save_pbirs_schedule)
         self.main.pbirs_schedule_delete_btn = QPushButton("Удалить расписание")
         self.main.pbirs_schedule_delete_btn.clicked.connect(self.main.delete_pbirs_schedule)
-        
+        buttons_layout.addStretch()
         buttons_layout.addWidget(self.main.pbirs_schedule_save_btn)
         buttons_layout.addWidget(self.main.pbirs_schedule_delete_btn)
-        buttons_layout.addStretch()
-        
-        settings_layout.addLayout(buttons_layout)
-        settings_group.setLayout(settings_layout)
-        
-        schedule_layout.addWidget(settings_group)
-        schedule_layout.addStretch()
-        
-        middle_layout.addWidget(schedule_panel, 2)  # 2 части ширины
-        layout.addWidget(middle_panel)
-        
-        layout.addStretch()
+        layout.addWidget(button_widget, 1)
+
         return tab
-    
+
     def create_logs_panel(self):
         """Создает панель логов для правой стороны."""
         panel = QWidget()

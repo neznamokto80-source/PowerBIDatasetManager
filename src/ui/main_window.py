@@ -385,7 +385,7 @@ class PowerBIMonitorUI(QMainWindow):
             table.item(row, 0).setData(Qt.ItemDataRole.UserRole, report)
         
         # Автоматически подгоняем ширину колонок
-        table.resizeColumnsToContents()
+        #table.resizeColumnsToContents()
     
     def update_pbirs_sources_table(self, sources_data, report_filter=None, source_filter=None):
         """
@@ -468,7 +468,7 @@ class PowerBIMonitorUI(QMainWindow):
                 table.item(row, 2).setToolTip("\n".join(tooltip_lines))
         
         # Автоматически подгоняем ширину колонок
-        table.resizeColumnsToContents()
+        #table.resizeColumnsToContents()
     
     def update_pbirs_details_table(self, reports, name_filter=None):
         """
@@ -540,7 +540,7 @@ class PowerBIMonitorUI(QMainWindow):
             table.setItem(row, 9, QTableWidgetItem(created_by))
         
         # Автоматически подгоняем ширину колонок
-        table.resizeColumnsToContents()
+        #table.resizeColumnsToContents()
     
     def update_tabs_visibility(self):
         """

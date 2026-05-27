@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTreeWidgetItem,
-    QMenu, QFormLayout, QGroupBox, QTextEdit
+    QMenu, QFormLayout, QGroupBox, QTextEdit, QTableWidgetItem
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QAction
@@ -729,6 +729,9 @@ class UIOperations:
             self._clear_pbirs_details_fields()
             # Отключаем кнопки управления
             self._set_pbirs_buttons_enabled(False)
+            # Очищаем таблицу расписаний
+            if hasattr(self.main_window, 'pbirs_refresh_plans_table'):
+                self.main_window.pbirs_refresh_plans_table.setRowCount(0)
             return
         
         # Получаем данные отчета из userData комбобокса
@@ -741,8 +744,78 @@ class UIOperations:
         self._update_pbirs_details_fields(report_data)
         # Включаем кнопки управления
         self._set_pbirs_buttons_enabled(True)
+        # Заполняем таблицу расписаний
+        self.populate_pbirs_refresh_plans_table(report_data)
         self.main_window.log_message(f"Выбран отчет: {report_data.get('Name', 'Без имени')}")
+
+    def populate_pbirs_refresh_plans_table(self, report_data):
+        """
+        Заполняет таблицу расписаний на вкладке Детали PBIRS.
+        Использует реальные поля LastRunTime и вычисляет следующий запуск.
+        """
+        from src.utils.pbirs_formatter import compute_next_run
+        import dateutil.parser
+
+        if not hasattr(self.main_window, 'pbirs_refresh_plans_table'):
+            return
+
+        table = self.main_window.pbirs_refresh_plans_table
+        table.setRowCount(0)
+
+        refresh_plans = report_data.get('RefreshPlansList', [])
+        if not refresh_plans:
+            self.main_window.log_message("Нет расписаний обновления для этого отчета.")
+            return
+
+        table.setRowCount(len(refresh_plans))
+        for row, plan in enumerate(refresh_plans):
+            # 1. Название
+            plan_name = plan.get('Description') or plan.get('Name', 'Без названия')
+            table.setItem(row, 0, QTableWidgetItem(plan_name))
+
+            # 2. Расписание (читаемое описание)
+            schedule_desc = plan.get('ScheduleDescription', 'Не задано')
+            table.setItem(row, 1, QTableWidgetItem(schedule_desc))
+
+            # 3. Последний запуск (из LastRunTime)
+            last_run_raw = plan.get('LastRunTime')
+            if last_run_raw:
+                try:
+                    dt = dateutil.parser.parse(last_run_raw)
+                    last_run_str = dt.strftime("%d.%m.%Y в %H:%M:%S")
+                except Exception:
+                    last_run_str = last_run_raw
+            else:
+                last_run_str = 'Никогда'
+            table.setItem(row, 2, QTableWidgetItem(last_run_str))
+
+            # 4. Статус
+            last_status = plan.get('LastStatus', 'Не запускался')
+            table.setItem(row, 3, QTableWidgetItem(last_status))
+
+            # 5. Следующий запуск (вычисляем из расписания)
+            schedule_obj = plan.get('Schedule')
+            start_dt = None
+            end_dt = None
+            recurrence = None
+            if schedule_obj and isinstance(schedule_obj, dict):
+                definition = schedule_obj.get('Definition', {})
+                start_dt = definition.get('StartDateTime')
+                end_dt = definition.get('EndDate')
+                recurrence = definition.get('Recurrence')
+            if recurrence and start_dt:
+                next_run_str = compute_next_run(recurrence, start_dt, end_dt)
+            else:
+                next_run_str = "Не запланировано"
+            table.setItem(row, 4, QTableWidgetItem(next_run_str))
+
+            # Сохраняем объект плана в userData первой ячейки
+            table.item(row, 0).setData(Qt.ItemDataRole.UserRole, plan)
+
+        table.resizeColumnsToContents()
+        self.main_window.log_message(f"Загружено расписаний: {len(refresh_plans)}")
     
+   
     def _clear_pbirs_details_fields(self):
         """Очищает поля информации об отчете на вкладке Детали PBIRS."""
         if hasattr(self.main_window, 'pbirs_detail_name'):
@@ -764,13 +837,8 @@ class UIOperations:
     
     def _update_pbirs_details_fields(self, report_data):
         """Обновляет поля информации об отчете на вкладке Детали PBIRS."""
-        from src.utils.pbirs_formatter import format_report_details
-        
-        # Форматируем детали отчета
-        formatted_text = format_report_details(report_data)
-        
-        # Парсим форматированный текст для заполнения полей (упрощенный подход)
-        # В реальности лучше использовать структурированные данные из report_data
+        import dateutil.parser
+
         if hasattr(self.main_window, 'pbirs_detail_name'):
             self.main_window.pbirs_detail_name.setText(report_data.get('Name', '-'))
         if hasattr(self.main_window, 'pbirs_detail_id'):
@@ -779,26 +847,67 @@ class UIOperations:
             self.main_window.pbirs_detail_folder.setText(report_data.get('Path', '-'))
         if hasattr(self.main_window, 'pbirs_detail_creator'):
             self.main_window.pbirs_detail_creator.setText(report_data.get('CreatedBy', '-'))
-        
-        # Источники данных
+
+        # Источники данных (полные, каждый с новой строки)
         if hasattr(self.main_window, 'pbirs_detail_sources'):
-            sources_brief = report_data.get('DataSourcesBrief', 'Нет источников')
-            self.main_window.pbirs_detail_sources.setText(sources_brief)
-        
+            sources_list = report_data.get('DataSourcesList', [])
+            if sources_list:
+                lines = []
+                for ds in sources_list:
+                    if ds is None:
+                        continue
+                    conn_str = ds.get('ConnectionString', '')
+                    if conn_str:
+                        lines.append(conn_str)
+                sources_text = "\n".join(lines) if lines else "Нет источников"
+            else:
+                sources_text = "Нет источников"
+            self.main_window.pbirs_detail_sources.setText(sources_text)
+
         # Статус обновления
         if hasattr(self.main_window, 'pbirs_detail_refresh_status'):
             last_status = report_data.get('LastStatus', 'Не запускался')
             self.main_window.pbirs_detail_refresh_status.setText(last_status)
-        
+
         # Последнее обновление
         if hasattr(self.main_window, 'pbirs_detail_last_refresh'):
             last_run = report_data.get('LastRunDisplayFull', report_data.get('LastRunDisplay', 'Никогда'))
             self.main_window.pbirs_detail_last_refresh.setText(last_run)
-        
+
         # Следующее обновление
         if hasattr(self.main_window, 'pbirs_detail_next_refresh'):
             next_run = report_data.get('NextRunDisplayDetailed', report_data.get('NextRunDisplay', 'Не запланировано'))
             self.main_window.pbirs_detail_next_refresh.setText(next_run)
+
+        # Дата создания
+        if hasattr(self.main_window, 'pbirs_detail_created_date'):
+            created_date = report_data.get('CreatedDate', '')
+            if created_date:
+                try:
+                    dt = dateutil.parser.parse(created_date)
+                    created_date_fmt = dt.strftime("%d.%m.%Y %H:%M:%S")
+                except:
+                    created_date_fmt = created_date
+            else:
+                created_date_fmt = '-'
+            self.main_window.pbirs_detail_created_date.setText(created_date_fmt)
+
+        # Кем изменён
+        if hasattr(self.main_window, 'pbirs_detail_modified_by'):
+            self.main_window.pbirs_detail_modified_by.setText(report_data.get('ModifiedBy', '-'))
+
+        # Дата изменения
+        if hasattr(self.main_window, 'pbirs_detail_modified_date'):
+            modified_date = report_data.get('ModifiedDate', '')
+            if modified_date:
+                try:
+                    dt = dateutil.parser.parse(modified_date)
+                    modified_date_fmt = dt.strftime("%d.%m.%Y %H:%M:%S")
+                except:
+                    modified_date_fmt = modified_date
+            else:
+                modified_date_fmt = '-'
+            self.main_window.pbirs_detail_modified_date.setText(modified_date_fmt)
     
     def _set_pbirs_buttons_enabled(self, enabled):
         """Включает или отключает кнопки управления на вкладке Детали PBIRS."""

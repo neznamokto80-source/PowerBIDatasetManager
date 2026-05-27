@@ -19,52 +19,20 @@ from datetime import datetime
 import re
 
 
-def _parse_next_run_datetime(next_run_str: str) -> Optional[datetime]:
-    """
-    Парсит строку следующего запуска в формате "дд.мм.гггг в чч:мм" в объект datetime.
-    Возвращает None если строка не может быть распарсена.
-    """
-    if not next_run_str or next_run_str in ["не запланирован", "Не запланировано", "завершено",
-                                           "не найдено", "нестандартное расписание", "ошибка в дате начала"]:
-        return None
-    
-    # Паттерн для формата "дд.мм.гггг в чч:мм"
-    pattern = r'(\d{2})\.(\d{2})\.(\d{4})\s+в\s+(\d{2}):(\d{2})'
-    match = re.search(pattern, next_run_str)
-    if match:
-        try:
-            day, month, year, hour, minute = map(int, match.groups())
-            return datetime(year, month, day, hour, minute)
-        except:
-            return None
-    
-    # Паттерн для формата "дд.мм.гггг, чч:мм" (используется в некоторых случаях)
-    pattern2 = r'(\d{2})\.(\d{2})\.(\d{4}),\s+(\d{2}):(\d{2})'
-    match = re.search(pattern2, next_run_str)
-    if match:
-        try:
-            day, month, year, hour, minute = map(int, match.groups())
-            return datetime(year, month, day, hour, minute)
-        except:
-            return None
-    
-    return None
-
-
 def enrich_report_data(report: Dict[str, Any]) -> Dict[str, Any]:
     """
     Обогащает данные отчета дополнительной информацией.
-    
-    Args:
-        report: Словарь с данными отчета от PBIRS API
-    
-    Returns:
-        Обогащенный словарь с дополнительными полями
     """
     if not report:
         return {}
     
     enriched = report.copy()
+    
+    # Сохраняем новые поля
+    enriched['CreatedBy'] = report.get('CreatedBy', '')
+    enriched['CreatedDate'] = report.get('CreatedDate', '')
+    enriched['ModifiedBy'] = report.get('ModifiedBy', '')
+    enriched['ModifiedDate'] = report.get('ModifiedDate', '')
     
     # Определяем тип отчета
     report_type = report.get('Type', 'Unknown')
@@ -89,29 +57,28 @@ def enrich_report_data(report: Dict[str, Any]) -> Dict[str, Any]:
     
     # Форматируем источники данных для краткого отображения
     if enriched['DataSourcesList']:
-        # Фильтруем None элементы и извлекаем ConnectionString
         connection_strings = []
         for ds in enriched['DataSourcesList']:
             if ds is None:
                 continue
             conn_str = ds.get('ConnectionString', '')
             if conn_str:
-                # Берем только первую часть до точки с запятой или весь ConnectionString
                 if ';' in conn_str:
-                    # Пример: "noutdell;ReportServer" -> берем "noutdell"
                     conn_str = conn_str.split(';')[0]
                 connection_strings.append(conn_str)
         
         if connection_strings:
-            # Убираем дубликаты
             unique_conn_strs = []
             for cs in connection_strings:
                 if cs not in unique_conn_strs:
                     unique_conn_strs.append(cs)
             
-            enriched['DataSourcesBrief'] = ', '.join(unique_conn_strs[:3])  # Первые 3 уникальных ConnectionString
+            brief = ', '.join(unique_conn_strs[:3])
             if len(unique_conn_strs) > 3:
-                enriched['DataSourcesBrief'] += f' и ещё {len(unique_conn_strs) - 3}'
+                brief += f' и ещё {len(unique_conn_strs) - 3}'
+            if len(brief) > 80:
+                brief = brief[:77] + '...'
+            enriched['DataSourcesBrief'] = brief
         else:
             enriched['DataSourcesBrief'] = 'Нет источников'
     else:
@@ -137,13 +104,11 @@ def enrich_report_data(report: Dict[str, Any]) -> Dict[str, Any]:
         plan_details = extract_refresh_plan_details(plan)
         enriched_plans.append(plan_details)
         
-        # Определяем последний статус и время запуска
         if plan_details.get('LastRunTime'):
             if not last_run_time or plan_details['LastRunTime'] > last_run_time:
                 last_run_time = plan_details['LastRunTime']
                 last_status = plan_details.get('LastStatus')
         
-        # Вычисляем следующее обновление для этого плана
         if plan_details.get('RecurrenceType'):
             plan_next_run = get_next_run_display_string(
                 plan_details.get('StartDateTime'),
@@ -163,16 +128,13 @@ def enrich_report_data(report: Dict[str, Any]) -> Dict[str, Any]:
     # Новые поля форматирования
     enriched['LastRunDisplayFull'] = format_datetime_full(last_run_time) if last_run_time else "Никогда"
     
-    # Форматируем время последнего запуска (для обратной совместимости)
     if last_run_time:
-        # Упрощенное форматирование - можно улучшить
         enriched['LastRunDisplay'] = last_run_time
     else:
         enriched['LastRunDisplay'] = "Никогда"
     
     # Добавляем описание расписания для каждого плана обновления и вычисляем следующий запуск
-    next_run_candidates = []  # Список кортежей (datetime, строка_представления)
-    
+    next_run_candidates = []
     for plan in enriched.get('RefreshPlansList', []):
         schedule_raw = plan.get('Schedule')
         schedule_dict = {}
@@ -203,24 +165,19 @@ def enrich_report_data(report: Dict[str, Any]) -> Dict[str, Any]:
         
         plan['ScheduleDescription'] = schedule_desc
         
-        # Вычисляем следующий запуск для этого плана
         next_run_str = compute_next_run(recurrence, start_dt, end_dt)
         plan['NextRun'] = next_run_str
         
-        # Парсим дату следующего запуска для сравнения
         next_run_dt = _parse_next_run_datetime(next_run_str)
         if next_run_dt:
             next_run_candidates.append((next_run_dt, next_run_str))
     
-    # Выбираем самый ближний следующий запуск
     if next_run_candidates:
-        # Сортируем по дате (самый ранний первый)
         next_run_candidates.sort(key=lambda x: x[0])
         next_run_detailed = next_run_candidates[0][1]
     else:
         next_run_detailed = "Не запланировано"
     
-    # Устанавливаем детализированное отображение следующего запуска
     enriched['NextRunDisplayDetailed'] = next_run_detailed
     
     # Форматируем размер
@@ -234,10 +191,8 @@ def enrich_report_data(report: Dict[str, Any]) -> Dict[str, Any]:
     # Форматируем путь для отображения папки
     path = report.get('Path', '')
     if path:
-        # Убедимся, что path - строка
         if not isinstance(path, str):
             path = str(path)
-        # Извлекаем папку из пути
         if '/' in path:
             folder = '/'.join(path.split('/')[:-1])
             if not folder.startswith('/'):
@@ -251,31 +206,41 @@ def enrich_report_data(report: Dict[str, Any]) -> Dict[str, Any]:
     return enriched
 
 
+def _parse_next_run_datetime(next_run_str: str) -> Optional[datetime]:
+    """Парсит строку следующего запуска в объект datetime."""
+    if not next_run_str or next_run_str in ["не запланирован", "Не запланировано", "завершено",
+                                           "не найдено", "нестандартное расписание", "ошибка в дате начала"]:
+        return None
+    
+    pattern = r'(\d{2})\.(\d{2})\.(\d{4})\s+в\s+(\d{2}):(\d{2})'
+    match = re.search(pattern, next_run_str)
+    if match:
+        try:
+            day, month, year, hour, minute = map(int, match.groups())
+            return datetime(year, month, day, hour, minute)
+        except:
+            return None
+    
+    pattern2 = r'(\d{2})\.(\d{2})\.(\d{4}),\s+(\d{2}):(\d{2})'
+    match = re.search(pattern2, next_run_str)
+    if match:
+        try:
+            day, month, year, hour, minute = map(int, match.groups())
+            return datetime(year, month, day, hour, minute)
+        except:
+            return None
+    
+    return None
+
+
 def enrich_reports_list(reports: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """
-    Обогащает список отчетов.
-    
-    Args:
-        reports: Список словарей с данными отчетов
-    
-    Returns:
-        Список обогащенных отчетов
-    """
+    """Обогащает список отчетов."""
     return [enrich_report_data(report) for report in reports]
 
 
 def extract_data_sources_for_table(reports: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """
-    Извлекает все источники данных из отчетов для таблицы на вкладке "Источники PBIRS".
-    
-    Args:
-        reports: Список обогащенных отчетов
-    
-    Returns:
-        Список словарей с источниками данных
-    """
+    """Извлекает все источники данных из отчетов для таблицы на вкладке "Источники PBIRS"."""
     sources = []
-    
     for report in reports:
         report_id = report.get('Id', 'Unknown')
         report_name = report.get('Name', 'Без имени')
@@ -294,13 +259,11 @@ def extract_data_sources_for_table(reports: List[Dict[str, Any]]) -> List[Dict[s
             modified_by = ds.get('ModifiedBy', '')
             modified_date = ds.get('ModifiedDate', '')
             
-            # Усекаем ConnectionString для отображения
-            if connection_string and len(connection_string) > 100:
-                short_conn = connection_string[:100] + '...'
+            if connection_string and len(connection_string) > 150:
+                short_conn = connection_string[:147] + '...'
             else:
                 short_conn = connection_string
             
-            # Форматируем даты
             created_date_formatted = format_datetime(created_date) if created_date else ""
             modified_date_formatted = format_datetime(modified_date) if modified_date else ""
             
@@ -320,27 +283,16 @@ def extract_data_sources_for_table(reports: List[Dict[str, Any]]) -> List[Dict[s
                 'ModifiedDate': modified_date,
                 'ModifiedDateFormatted': modified_date_formatted
             })
-    
     return sources
 
 
 def get_unique_data_source_names(reports: List[Dict[str, Any]]) -> List[str]:
-    """
-    Возвращает список уникальных имен источников данных для фильтра.
-    
-    Args:
-        reports: Список обогащенных отчетов
-    
-    Returns:
-        Список уникальных имен источников данных
-    """
+    """Возвращает список уникальных имен источников данных для фильтра."""
     source_names = set()
-    
     for report in reports:
         data_sources = report.get('DataSourcesList', [])
         for ds in data_sources:
             name = ds.get('Name')
             if name:
                 source_names.add(name)
-    
     return sorted(list(source_names))

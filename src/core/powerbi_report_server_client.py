@@ -274,12 +274,12 @@ class PowerBIReportServerClient:
                     # DataSources будем загружать отдельными запросами
                     if report_type == "PowerBIReports":
                         params = {
-                            "$select": "Id,Name,Path,CreatedBy,Description,Size,Type",
+                            "$select": "Id,Name,Path,CreatedBy,CreatedDate,ModifiedBy,ModifiedDate,Description,Size,Type",
                             "$format": "json"
                         }
                     else:
                         params = {
-                            "$select": "Id,Name,Path,CreatedBy,Description,Size,Type",
+                            "$select": "Id,Name,Path,CreatedBy,CreatedDate,ModifiedBy,ModifiedDate,Description,Size,Type",
                             "$expand": "DataSources",
                             "$format": "json"
                         }
