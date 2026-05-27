@@ -269,25 +269,47 @@ class PowerBIReportServerClient:
             
             for report_type in report_types:
                 try:
-                    # Получаем отчеты с расширенными данными (DataSources)
-                    params = {
-                        "$select": "Id,Name,Path,CreatedBy,Description,Size,Type",
-                        "$expand": "DataSources",
-                        "$format": "json"
-                    }
+                    # Формируем параметры запроса
+                    # Для PowerBIReports не используем $expand=DataSources, так как это вызывает ошибку 500
+                    # DataSources будем загружать отдельными запросами
+                    if report_type == "PowerBIReports":
+                        params = {
+                            "$select": "Id,Name,Path,CreatedBy,Description,Size,Type",
+                            "$format": "json"
+                        }
+                    else:
+                        params = {
+                            "$select": "Id,Name,Path,CreatedBy,Description,Size,Type",
+                            "$expand": "DataSources",
+                            "$format": "json"
+                        }
                     
                     # Используем существующий метод _make_request с параметрами
                     data = self._make_request(report_type, params=params)
                     items = data.get("value", [])
                     
-                    # Для каждого отчёта загружаем расписания
+                    # Для каждого отчёта загружаем расписания и DataSources (если нужно)
                     for item in items:
                         report_id = item.get("Id")
                         if report_id:
                             plans = get_cache_refresh_plans_for_report(report_type, report_id)
                             item["CacheRefreshPlans"] = plans
+                            
+                            # Для PowerBIReports загружаем DataSources отдельным запросом
+                            if report_type == "PowerBIReports":
+                                try:
+                                    ds_data = self._make_request(f"PowerBIReports({report_id})/DataSources")
+                                    item["DataSources"] = ds_data.get("value", [])
+                                except Exception as ds_e:
+                                    logger.debug(f"Не удалось загрузить DataSources для отчета {report_id}: {ds_e}")
+                                    item["DataSources"] = []
+                            else:
+                                # Для SSRS отчетов DataSources уже включены через $expand
+                                if "DataSources" not in item:
+                                    item["DataSources"] = []
                         else:
                             item["CacheRefreshPlans"] = []
+                            item["DataSources"] = []
                         
                         # Добавляем тип отчета для идентификации
                         item["ReportType"] = "PowerBIReport" if report_type == "PowerBIReports" else "SSRSReport"
