@@ -8,6 +8,47 @@ import json
 from typing import List, Dict, Any, Optional
 from .schedule_parser import extract_refresh_plan_details, format_schedule_for_display
 from .next_run_calculator import get_next_run_display_string
+from .pbirs_formatter import (
+    format_datetime_full,
+    compute_next_run,
+    parse_recurrence_to_description,
+    format_datetime,
+    format_date_only
+)
+from datetime import datetime
+import re
+
+
+def _parse_next_run_datetime(next_run_str: str) -> Optional[datetime]:
+    """
+    Парсит строку следующего запуска в формате "дд.мм.гггг в чч:мм" в объект datetime.
+    Возвращает None если строка не может быть распарсена.
+    """
+    if not next_run_str or next_run_str in ["не запланирован", "Не запланировано", "завершено",
+                                           "не найдено", "нестандартное расписание", "ошибка в дате начала"]:
+        return None
+    
+    # Паттерн для формата "дд.мм.гггг в чч:мм"
+    pattern = r'(\d{2})\.(\d{2})\.(\d{4})\s+в\s+(\d{2}):(\d{2})'
+    match = re.search(pattern, next_run_str)
+    if match:
+        try:
+            day, month, year, hour, minute = map(int, match.groups())
+            return datetime(year, month, day, hour, minute)
+        except:
+            return None
+    
+    # Паттерн для формата "дд.мм.гггг, чч:мм" (используется в некоторых случаях)
+    pattern2 = r'(\d{2})\.(\d{2})\.(\d{4}),\s+(\d{2}):(\d{2})'
+    match = re.search(pattern2, next_run_str)
+    if match:
+        try:
+            day, month, year, hour, minute = map(int, match.groups())
+            return datetime(year, month, day, hour, minute)
+        except:
+            return None
+    
+    return None
 
 
 def enrich_report_data(report: Dict[str, Any]) -> Dict[str, Any]:
@@ -48,19 +89,29 @@ def enrich_report_data(report: Dict[str, Any]) -> Dict[str, Any]:
     
     # Форматируем источники данных для краткого отображения
     if enriched['DataSourcesList']:
-        # Фильтруем None элементы и извлекаем имена
-        source_names = []
+        # Фильтруем None элементы и извлекаем ConnectionString
+        connection_strings = []
         for ds in enriched['DataSourcesList']:
             if ds is None:
                 continue
-            name = ds.get('Name', 'Без имени')
-            if name is None:
-                name = 'Без имени'
-            source_names.append(name)
-        if source_names:
-            enriched['DataSourcesBrief'] = ', '.join(source_names[:3])  # Первые 3 источника
-            if len(source_names) > 3:
-                enriched['DataSourcesBrief'] += f' и ещё {len(source_names) - 3}'
+            conn_str = ds.get('ConnectionString', '')
+            if conn_str:
+                # Берем только первую часть до точки с запятой или весь ConnectionString
+                if ';' in conn_str:
+                    # Пример: "noutdell;ReportServer" -> берем "noutdell"
+                    conn_str = conn_str.split(';')[0]
+                connection_strings.append(conn_str)
+        
+        if connection_strings:
+            # Убираем дубликаты
+            unique_conn_strs = []
+            for cs in connection_strings:
+                if cs not in unique_conn_strs:
+                    unique_conn_strs.append(cs)
+            
+            enriched['DataSourcesBrief'] = ', '.join(unique_conn_strs[:3])  # Первые 3 уникальных ConnectionString
+            if len(unique_conn_strs) > 3:
+                enriched['DataSourcesBrief'] += f' и ещё {len(unique_conn_strs) - 3}'
         else:
             enriched['DataSourcesBrief'] = 'Нет источников'
     else:
@@ -109,12 +160,68 @@ def enrich_report_data(report: Dict[str, Any]) -> Dict[str, Any]:
     enriched['LastRunTime'] = last_run_time
     enriched['NextRunDisplay'] = next_run_display
     
-    # Форматируем время последнего запуска
+    # Новые поля форматирования
+    enriched['LastRunDisplayFull'] = format_datetime_full(last_run_time) if last_run_time else "Никогда"
+    
+    # Форматируем время последнего запуска (для обратной совместимости)
     if last_run_time:
         # Упрощенное форматирование - можно улучшить
         enriched['LastRunDisplay'] = last_run_time
     else:
         enriched['LastRunDisplay'] = "Никогда"
+    
+    # Добавляем описание расписания для каждого плана обновления и вычисляем следующий запуск
+    next_run_candidates = []  # Список кортежей (datetime, строка_представления)
+    
+    for plan in enriched.get('RefreshPlansList', []):
+        schedule_raw = plan.get('Schedule')
+        schedule_dict = {}
+        if schedule_raw is not None:
+            if isinstance(schedule_raw, str):
+                try:
+                    schedule_dict = json.loads(schedule_raw)
+                except:
+                    schedule_dict = {}
+            elif isinstance(schedule_raw, dict):
+                schedule_dict = schedule_raw
+        
+        definition = schedule_dict.get("Definition") if isinstance(schedule_dict.get("Definition"), dict) else {}
+        start_dt = definition.get("StartDateTime") if definition else None
+        end_dt = definition.get("EndDate") if definition else None
+        recurrence = definition.get("Recurrence") if definition else {}
+        if recurrence and isinstance(recurrence, str):
+            try:
+                recurrence = json.loads(recurrence)
+            except:
+                recurrence = {}
+        
+        schedule_desc = parse_recurrence_to_description(recurrence, start_dt)
+        if start_dt and "начиная с" not in schedule_desc:
+            date_start = format_date_only(start_dt)
+            if date_start:
+                schedule_desc += f" начиная с {date_start}"
+        
+        plan['ScheduleDescription'] = schedule_desc
+        
+        # Вычисляем следующий запуск для этого плана
+        next_run_str = compute_next_run(recurrence, start_dt, end_dt)
+        plan['NextRun'] = next_run_str
+        
+        # Парсим дату следующего запуска для сравнения
+        next_run_dt = _parse_next_run_datetime(next_run_str)
+        if next_run_dt:
+            next_run_candidates.append((next_run_dt, next_run_str))
+    
+    # Выбираем самый ближний следующий запуск
+    if next_run_candidates:
+        # Сортируем по дате (самый ранний первый)
+        next_run_candidates.sort(key=lambda x: x[0])
+        next_run_detailed = next_run_candidates[0][1]
+    else:
+        next_run_detailed = "Не запланировано"
+    
+    # Устанавливаем детализированное отображение следующего запуска
+    enriched['NextRunDisplayDetailed'] = next_run_detailed
     
     # Форматируем размер
     size_bytes = report.get('Size', 0)
@@ -181,12 +288,21 @@ def extract_data_sources_for_table(reports: List[Dict[str, Any]]) -> List[Dict[s
                 continue
             source_name = ds.get('Name', 'Без имени')
             connection_string = ds.get('ConnectionString', '')
+            data_source_type = ds.get('DataSourceType', 'Unknown')
+            created_by = ds.get('CreatedBy', '')
+            created_date = ds.get('CreatedDate', '')
+            modified_by = ds.get('ModifiedBy', '')
+            modified_date = ds.get('ModifiedDate', '')
             
             # Усекаем ConnectionString для отображения
             if connection_string and len(connection_string) > 100:
                 short_conn = connection_string[:100] + '...'
             else:
                 short_conn = connection_string
+            
+            # Форматируем даты
+            created_date_formatted = format_datetime(created_date) if created_date else ""
+            modified_date_formatted = format_datetime(modified_date) if modified_date else ""
             
             sources.append({
                 'ReportId': report_id,
@@ -195,7 +311,14 @@ def extract_data_sources_for_table(reports: List[Dict[str, Any]]) -> List[Dict[s
                 'Folder': folder,
                 'DataSourceName': source_name,
                 'ConnectionString': connection_string,
-                'ConnectionStringShort': short_conn
+                'ConnectionStringShort': short_conn,
+                'DataSourceType': data_source_type,
+                'CreatedBy': created_by,
+                'CreatedDate': created_date,
+                'CreatedDateFormatted': created_date_formatted,
+                'ModifiedBy': modified_by,
+                'ModifiedDate': modified_date,
+                'ModifiedDateFormatted': modified_date_formatted
             })
     
     return sources

@@ -226,7 +226,7 @@ class PBIRSOperations(BaseOperations):
                 self.main_window.update_pbirs_sources_table(sources_data, report_filter, source_filter)
                 self.main_window.log_message(f"✓ Таблица источников PBIRS обновлена (записей: {len(sources_data)})")
             
-            # Заполняем комбобокс фильтра ConnectionString уникальными значениями
+            # Заполняем комбобокс фильтра источников данных уникальными значениями
             if hasattr(self.main_window, 'pbirs_sources_source_filter'):
                 combo = self.main_window.pbirs_sources_source_filter
                 combo.clear()
@@ -253,7 +253,7 @@ class PBIRSOperations(BaseOperations):
                     combo.addItem(display_string)
                     # Сохраняем полный ConnectionString в userData
                     combo.setItemData(combo.count() - 1, conn_string, Qt.ItemDataRole.UserRole)
-                self.main_window.log_message(f"  Заполнен фильтр ConnectionString: {len(unique_connections)} уникальных значений")
+                self.main_window.log_message(f"  Заполнен фильтр источников данных: {len(unique_connections)} уникальных значений")
             
             # Обновляем таблицу детальной информации PBIRS
             if hasattr(self.main_window, 'update_pbirs_details_table'):
@@ -265,6 +265,10 @@ class PBIRSOperations(BaseOperations):
                     name_filter = self.main_window.pbirs_details_name_filter.text()
                 self.main_window.update_pbirs_details_table(enriched_reports, name_filter)
                 self.main_window.log_message("✓ Таблица деталей PBIRS обновлена")
+            
+            # Обновляем комбобокс выбора отчета на вкладке "Детали PBIRS"
+            if hasattr(self.main_window, 'pbirs_details_report_combo'):
+                self._update_pbirs_details_report_combo(enriched_reports)
             
         except Exception as e:
             self.main_window.log_message(f"✗ Ошибка при загрузке отчетов PBIRS: {e}")
@@ -338,6 +342,37 @@ class PBIRSOperations(BaseOperations):
             return result
         except Exception:
             return "Ошибка загрузки"
+    
+    def _update_pbirs_details_report_combo(self, reports):
+        """
+        Обновляет комбобокс выбора отчета на вкладке "Детали PBIRS".
+        
+        Args:
+            reports: Список отчетов (обогащенные данные)
+        """
+        if not hasattr(self.main_window, 'pbirs_details_report_combo'):
+            return
+        
+        combo = self.main_window.pbirs_details_report_combo
+        current_text = combo.currentText()
+        
+        combo.clear()
+        combo.addItem("-- Выберите отчет --", None)
+        
+        for report in reports:
+            name = report.get('Name', 'Без имени')
+            report_id = report.get('Id', '')
+            # Добавляем в комбобокс
+            combo.addItem(name, report)
+        
+        # Восстанавливаем предыдущий выбор, если возможно
+        index = combo.findText(current_text)
+        if index >= 0:
+            combo.setCurrentIndex(index)
+        else:
+            combo.setCurrentIndex(0)
+        
+        self.main_window.log_message(f"✓ Комбобокс отчетов PBIRS обновлен: {len(reports)} отчетов")
 
 
 if __name__ == "__main__":

@@ -75,26 +75,53 @@ class DataLoadingMethods(BaseOperations):
     # ========== Основные методы ==========
     
     def refresh_data(self):
-        """Обновление данных."""
-        if not self.main_window.client or not self.main_window.current_workspace:
-            self.main_window.log_message("Не подключено к Power BI или не выбрана рабочая область")
-            return
-        
+        """Обновление данных для текущего режима (service или server)."""
         # Используем контекстный менеджер для автоматического управления прогресс-баром
         with self.progress.with_progress("Загрузка данных...", indeterminate=True):
             try:
                 self.main_window.log_message("Обновление данных...")
                 self.main_window.status_bar.showMessage("Обновление данных...")
                 
-                # Обновляем список датасетов
-                self.main_window.load_datasets()
-                
-                # Если есть выбранный датасет, обновляем его детали
-                if self.main_window.current_dataset:
-                    self.main_window.update_dataset_details(self.main_window.current_dataset)
-                
-                self.main_window.status_bar.showMessage("Данные обновлены", 3000)
-                self.main_window.log_message("✓ Данные обновлены")
+                if self.main_window.current_mode == 'server':
+                    # Режим PBIRS (server)
+                    if not self.main_window.client:
+                        self.main_window.log_message("Не подключено к Power BI Report Server")
+                        self.main_window.status_bar.showMessage("Не подключено к PBIRS", 3000)
+                        return
+                    
+                    # Загружаем отчеты PBIRS
+                    self.main_window.load_pbirs_reports()
+                    
+                    # Обновляем таблицы
+                    if hasattr(self.main_window, 'pbirs_reports') and self.main_window.pbirs_reports:
+                        # Обновляем таблицу отчетов
+                        self.main_window.update_pbirs_reports_table(self.main_window.pbirs_reports)
+                        
+                        # Обновляем таблицу источников
+                        sources_data = self.main_window.pbirs_operations.get_report_data_sources_for_table(
+                            self.main_window.pbirs_reports[0].get('Id') if self.main_window.pbirs_reports else ''
+                        )
+                        self.main_window.update_pbirs_sources_table(sources_data)
+                    
+                    self.main_window.status_bar.showMessage("Данные PBIRS обновлены", 3000)
+                    self.main_window.log_message("✓ Данные PBIRS обновлены")
+                    
+                else:
+                    # Режим Power BI Service (service)
+                    if not self.main_window.client or not self.main_window.current_workspace:
+                        self.main_window.log_message("Не подключено к Power BI или не выбрана рабочая область")
+                        self.main_window.status_bar.showMessage("Не подключено к Power BI", 3000)
+                        return
+                    
+                    # Обновляем список датасетов
+                    self.main_window.load_datasets()
+                    
+                    # Если есть выбранный датасет, обновляем его детали
+                    if self.main_window.current_dataset:
+                        self.main_window.update_dataset_details(self.main_window.current_dataset)
+                    
+                    self.main_window.status_bar.showMessage("Данные обновлены", 3000)
+                    self.main_window.log_message("✓ Данные обновлены")
                 
             except Exception as e:
                 self.main_window.log_message(f"✗ Ошибка при обновлении данных: {e}")

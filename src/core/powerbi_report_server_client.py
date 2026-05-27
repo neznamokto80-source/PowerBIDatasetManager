@@ -67,6 +67,8 @@ class PowerBIReportServerClient:
         if not self.debug_data_path:
             return
         
+        logger.info("Сохранение сырых данных для %s %s (статус: %d)", method, url, status_code)
+        
         # Извлекаем идентификаторы из URL
         report_id = None
         import re
@@ -92,10 +94,14 @@ class PowerBIReportServerClient:
             components.append(report_id[:20])
         
         filename = "_".join(components) + f"_{micro}.json"
-        filepath = os.path.join(self.debug_data_path, filename)
+        
+        # Создаем абсолютный путь
+        import os
+        debug_dir = os.path.abspath(self.debug_data_path)
+        filepath = os.path.join(debug_dir, filename)
         
         # Убедимся, что директория существует
-        os.makedirs(self.debug_data_path, exist_ok=True)
+        os.makedirs(debug_dir, exist_ok=True)
         
         payload = {
             "url": url,
@@ -109,9 +115,9 @@ class PowerBIReportServerClient:
         try:
             with open(filepath, 'w', encoding='utf-8') as f:
                 json.dump(payload, f, ensure_ascii=False, indent=2)
-            logger.debug(f"Сырые данные сохранены в {filepath}")
+            logger.info("Сырые данные сохранены в %s", filepath)
         except Exception as e:
-            logger.warning(f"Не удалось сохранить сырые данные: {e}")
+            logger.error("Не удалось сохранить сырые данные в %s: %s", filepath, str(e))
     
     def _make_request(
         self,
@@ -159,8 +165,10 @@ class PowerBIReportServerClient:
                 status_code=response.status_code
             )
         
-        # Для DELETE без содержимого
+        # Для DELETE без содержимого (статус 204)
         if response.status_code == 204:
+            if self.debug_data_path:
+                self._save_raw_data(url, method, {"status": "204 No Content"}, response.status_code)
             return {}
         
         # Логируем тело ответа для отладки
@@ -168,6 +176,8 @@ class PowerBIReportServerClient:
         
         # Если тело ответа пустое
         if not response.text.strip():
+            if self.debug_data_path:
+                self._save_raw_data(url, method, {"status": "Empty response"}, response.status_code)
             return {}
         
         try:
@@ -176,6 +186,9 @@ class PowerBIReportServerClient:
                 self._save_raw_data(url, method, result, response.status_code)
             return result
         except ValueError as e:
+            # Если JSON невалидный, но есть текст ответа
+            if self.debug_data_path:
+                self._save_raw_data(url, method, {"raw_text": response.text, "error": str(e)}, response.status_code)
             raise APIRequestError(f"Не удалось разобрать JSON ответ от {url}: {e}", status_code=response.status_code) from e
     
     def get_powerbi_reports(self) -> List[Dict[str, Any]]:

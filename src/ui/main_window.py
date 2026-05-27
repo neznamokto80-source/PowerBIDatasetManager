@@ -28,6 +28,7 @@ from src.operations.refresh_operations import RefreshOperations, ProgressManager
 from src.operations.pbirs_operations import PBIRSOperations
 from src.utils.log_handler import QTextEditLogHandler
 from src.utils.pbirs_data_enricher import enrich_reports_list, enrich_report_data
+from src.utils.pbirs_formatter import format_report_details
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +53,7 @@ class PowerBIMonitorUI(QMainWindow):
         self.auto_refresh_enabled = False  # Флаг автообновления
         self.current_theme = "Светлая"  # Текущая тема интерфейса
         self.current_mode = None  # 'service' или 'server'
+        self.debug_data_path = None  # Путь для сохранения сырых логов
         
         # Инициализация компонентов UI
         self.ui_components = UIComponents(self)
@@ -346,18 +348,37 @@ class PowerBIMonitorUI(QMainWindow):
             
             # Колонка 4: Источники данных (кратко)
             sources_brief = report.get('DataSourcesBrief', 'Нет источников')
-            table.setItem(row, 4, QTableWidgetItem(sources_brief))
+            sources_item = QTableWidgetItem(sources_brief)
+            table.setItem(row, 4, sources_item)
+            
+            # Добавляем tooltip с полными ConnectionString
+            data_sources = report.get('DataSourcesList', [])
+            if data_sources:
+                tooltip_lines = []
+                for ds in data_sources:
+                    if ds is None:
+                        continue
+                    conn_str = ds.get('ConnectionString', '')
+                    if conn_str:
+                        tooltip_lines.append(f"• {conn_str}")
+                
+                if tooltip_lines:
+                    sources_item.setToolTip("Полные строки подключения:\n" + "\n".join(tooltip_lines))
             
             # Колонка 5: Последний статус
             last_status = report.get('LastStatus', 'Не запускался')
+            last_run_time = report.get('LastRunTime')
+            # Если есть планы обновления, но нет времени последнего запуска, показываем "Новое расписание обновления"
+            if not last_run_time and report.get('RefreshPlansList'):
+                last_status = 'Новое расписание обновления'
             table.setItem(row, 5, QTableWidgetItem(last_status))
             
-            # Колонка 6: Последнее обновление
-            last_run_display = report.get('LastRunDisplay', 'Никогда')
+            # Колонка 6: Последнее обновление (полный формат)
+            last_run_display = report.get('LastRunDisplayFull', report.get('LastRunDisplay', 'Никогда'))
             table.setItem(row, 6, QTableWidgetItem(last_run_display))
             
-            # Колонка 7: Следующее обновление
-            next_run_display = report.get('NextRunDisplay', 'Не запланировано')
+            # Колонка 7: Следующее обновление (детализированный формат)
+            next_run_display = report.get('NextRunDisplayDetailed', report.get('NextRunDisplay', 'Не запланировано'))
             table.setItem(row, 7, QTableWidgetItem(next_run_display))
             
             # Сохраняем полные данные отчета в userData для доступа при двойном клике
@@ -419,17 +440,32 @@ class PowerBIMonitorUI(QMainWindow):
             report_name = source_item.get('ReportName', 'Без имени')
             table.setItem(row, 1, QTableWidgetItem(report_name))
             
-            # Колонка 2: ConnectionString (сокращенный вид)
+            # Колонка 2: ConnectionString (сокращенный вид) с дополнительной информацией в tooltip
             connection_string = source_item.get('ConnectionString', '')
+            data_source_type = source_item.get('DataSourceType', '')
+            created_by = source_item.get('CreatedBy', '')
+            created_date = source_item.get('CreatedDateFormatted', '')
+            
             # Обрезаем длинные строки
             if len(connection_string) > 100:
                 display_string = connection_string[:97] + '...'
             else:
                 display_string = connection_string
             table.setItem(row, 2, QTableWidgetItem(display_string))
-            # Сохраняем полный ConnectionString в tooltip
+            
+            # Создаем расширенный tooltip с дополнительной информацией
+            tooltip_lines = []
             if connection_string:
-                table.item(row, 2).setToolTip(connection_string)
+                tooltip_lines.append(f"ConnectionString: {connection_string}")
+            if data_source_type:
+                tooltip_lines.append(f"Тип источника: {data_source_type}")
+            if created_by:
+                tooltip_lines.append(f"Создатель: {created_by}")
+            if created_date:
+                tooltip_lines.append(f"Создан: {created_date}")
+            
+            if tooltip_lines:
+                table.item(row, 2).setToolTip("\n".join(tooltip_lines))
         
         # Автоматически подгоняем ширину колонок
         table.resizeColumnsToContents()
@@ -509,24 +545,26 @@ class PowerBIMonitorUI(QMainWindow):
     def update_tabs_visibility(self):
         """
         Обновляет видимость вкладок в зависимости от текущего режима.
-        В режиме server скрывает вкладки "Обзор" и "Детали", показывает "Отчёты PBIRS" и "Источники PBIRS".
-        В режиме service показывает "Обзор" и "Детали", скрывает "Отчёты PBIRS" и "Источники PBIRS".
+        В режиме server скрывает вкладки "Обзор" и "Детали", показывает "Отчёты PBIRS", "Источники PBIRS" и "Детали PBIRS".
+        В режиме service показывает "Обзор" и "Детали", скрывает вкладки PBIRS.
         """
         if not hasattr(self, 'tab_widget'):
             return
         
         if self.current_mode == 'server':
-            # Скрываем вкладки 0 и 1, показываем вкладки 2 и 3
+            # Скрываем вкладки 0 и 1, показываем вкладки 2, 3 и 4
             self.tab_widget.setTabVisible(0, False)  # Обзор
-            self.tab_widget.setTabVisible(1, False)  # Детали
+            self.tab_widget.setTabVisible(1, False)  # Детали (облачная версия)
             self.tab_widget.setTabVisible(2, True)   # Отчёты PBIRS
             self.tab_widget.setTabVisible(3, True)   # Источники PBIRS
+            self.tab_widget.setTabVisible(4, True)   # Детали PBIRS
         else:
-            # Показываем вкладки 0 и 1, скрываем вкладки 2 и 3
+            # Показываем вкладки 0 и 1, скрываем вкладки 2, 3 и 4
             self.tab_widget.setTabVisible(0, True)
             self.tab_widget.setTabVisible(1, True)
             self.tab_widget.setTabVisible(2, False)
             self.tab_widget.setTabVisible(3, False)
+            self.tab_widget.setTabVisible(4, False)
     
     def refresh_data(self):
         """Обновление данных."""
@@ -622,62 +660,60 @@ class PowerBIMonitorUI(QMainWindow):
         # Открываем диалоговое окно с детальной информацией
         self.show_report_details_dialog(report_data)
     
+    # ========== Методы для вкладки "Детали PBIRS" ==========
+    
+    def on_pbirs_details_report_selected(self):
+        """Обработчик выбора отчета в выпадающем списке на вкладке Детали PBIRS."""
+        return self.ui_operations.on_pbirs_details_report_selected()
+    
+    def enable_pbirs_refresh(self):
+        """Включение автоматического обновления для выбранного отчета PBIRS."""
+        return self.ui_operations.enable_pbirs_refresh()
+    
+    def disable_pbirs_refresh(self):
+        """Отключение автоматического обновления для выбранного отчета PBIRS."""
+        return self.ui_operations.disable_pbirs_refresh()
+    
+    def trigger_pbirs_manual_refresh(self):
+        """Ручной запуск обновления для выбранного отчета PBIRS."""
+        return self.ui_operations.trigger_pbirs_manual_refresh()
+    
+    def add_pbirs_schedule_time(self):
+        """Добавление нового времени в расписание PBIRS."""
+        return self.ui_operations.add_pbirs_schedule_time()
+    
+    def remove_pbirs_schedule_time(self):
+        """Удаление выбранного времени из расписания PBIRS."""
+        return self.ui_operations.remove_pbirs_schedule_time()
+    
+    def save_pbirs_schedule(self):
+        """Сохранение расписания для выбранного отчета PBIRS."""
+        return self.ui_operations.save_pbirs_schedule()
+    
+    def delete_pbirs_schedule(self):
+        """Удаление расписания для выбранного отчета PBIRS."""
+        return self.ui_operations.delete_pbirs_schedule()
+    
     def show_report_details_dialog(self, report_data):
         """Открывает диалоговое окно с детальной информацией об отчете."""
         dialog = QDialog(self)
         dialog.setWindowTitle(f"Детали отчета: {report_data.get('Name', 'Без имени')}")
-        dialog.setMinimumWidth(600)
+        dialog.setMinimumWidth(800)
+        dialog.setMinimumHeight(600)
         
         layout = QVBoxLayout(dialog)
         
-        # Форма с основными полями
-        form = QFormLayout()
+        # Текстовое поле с форматированными деталями
+        text_edit = QTextEdit()
+        text_edit.setReadOnly(True)
+        text_edit.setFontFamily("Courier New")
+        text_edit.setFontPointSize(10)
         
-        # Основные поля
-        fields = [
-            ("Название", report_data.get('Name', 'Нет данных')),
-            ("Путь", report_data.get('Path', 'Нет данных')),
-            ("Тип отчета", report_data.get('ReportTypeDisplay', report_data.get('Type', 'Нет данных'))),
-            ("Размер", report_data.get('SizeDisplay', '0 МБ')),
-            ("Папка", report_data.get('FolderDisplay', '/')),
-            ("Описание", report_data.get('Description', 'Нет описания')),
-            ("Создатель", report_data.get('CreatedBy', 'Неизвестно')),
-            ("Дата создания", report_data.get('CreationDate', 'Нет данных')),
-        ]
+        # Форматируем детали отчёта
+        formatted_text = format_report_details(report_data)
+        text_edit.setPlainText(formatted_text)
         
-        for label, value in fields:
-            form.addRow(QLabel(f"<b>{label}:</b>"), QLabel(str(value)))
-        
-        # Источники данных
-        data_sources = report_data.get('DataSourcesList', [])
-        if data_sources:
-            sources_text = "\n".join([
-                f"{ds.get('Name', 'Без имени')} ({ds.get('DataSourceType', 'Unknown')})"
-                for ds in data_sources if ds
-            ])
-        else:
-            sources_text = "Нет источников данных"
-        
-        form.addRow(QLabel("<b>Источники данных:</b>"), QLabel(sources_text))
-        
-        # Планы обновления кэша
-        refresh_plans = report_data.get('RefreshPlansDetails', [])
-        if refresh_plans:
-            plans_text = "\n".join([
-                f"{plan.get('Name', 'Без имени')}: {plan.get('RecurrenceDescription', 'Без расписания')}"
-                for plan in refresh_plans
-            ])
-        else:
-            plans_text = "Нет планов обновления кэша"
-        
-        form.addRow(QLabel("<b>Планы обновления:</b>"), QLabel(plans_text))
-        
-        # Последний статус и время
-        form.addRow(QLabel("<b>Последний статус:</b>"), QLabel(report_data.get('LastStatus', 'Не запускался')))
-        form.addRow(QLabel("<b>Последнее обновление:</b>"), QLabel(report_data.get('LastRunDisplay', 'Никогда')))
-        form.addRow(QLabel("<b>Следующее обновление:</b>"), QLabel(report_data.get('NextRunDisplay', 'Не запланировано')))
-        
-        layout.addLayout(form)
+        layout.addWidget(text_edit)
         
         # Кнопка закрытия
         close_btn = QPushButton("Закрыть")
@@ -789,15 +825,23 @@ class PowerBIMonitorUI(QMainWindow):
     def toggle_debug_logging(self, state):
         """
         Включает/выключает сохранение сырых логов в каталог debug/.
-        
+
         Args:
             state: Состояние чекбокса (0 - выключено, 2 - включено)
         """
         debug_enabled = state == 2  # Qt.Checked == 2
         debug_path = "debug" if debug_enabled else None
+        
+        # Сохраняем путь в главном окне для использования при создании клиентов
+        self.debug_data_path = debug_path
+        
+        # Если клиент уже создан, обновляем его путь
         if hasattr(self, 'client') and self.client:
             self.client.set_debug_path(debug_path)
+        
         self.log_message(f"Сохранение сырых логов {'включено' if debug_enabled else 'выключено'}")
+        if debug_enabled:
+            self.log_message(f"Сырые логи будут сохраняться в каталог: {debug_path}")
 
     def toggle_theme(self, state):
         """

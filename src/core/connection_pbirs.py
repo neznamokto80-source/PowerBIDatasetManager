@@ -44,8 +44,15 @@ class PBIRSConnectionMethods:
             # Создаем клиент для PBIRS
             debug_data_path = None  # Можно включить для отладки
             # Проверяем, включен ли чекбокс сохранения сырых логов
-            if hasattr(self.main_window, 'debug_checkbox') and self.main_window.debug_checkbox.isChecked():
-                debug_data_path = "debug"
+            if hasattr(self.main_window, 'debug_checkbox'):
+                if self.main_window.debug_checkbox.isChecked():
+                    debug_data_path = "debug"
+                    logger.info("Чекбокс 'Сохранять сырые логи' включен, путь: %s", debug_data_path)
+                else:
+                    logger.info("Чекбокс 'Сохранять сырые логи' выключен")
+            else:
+                logger.warning("Атрибут debug_checkbox не найден в main_window")
+            
             self.main_window.client = PowerBIReportServerClient(
                 server_url=server_url,
                 username=username,

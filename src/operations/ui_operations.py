@@ -716,3 +716,123 @@ class UIOperations:
 
         <p><i>Версия приложения: 1.0.0</i><br><i>Дата составления справки: Май 2026</i></p>
         """
+    
+    # ========== Методы для вкладки "Детали PBIRS" ==========
+    
+    def on_pbirs_details_report_selected(self):
+        """Обработчик выбора отчета в выпадающем списке на вкладке Детали PBIRS."""
+        combo = self.main_window.pbirs_details_report_combo
+        index = combo.currentIndex()
+        
+        if index <= 0:  # Первый элемент "-- Выберите отчет --" или нет выбора
+            # Очищаем поля информации
+            self._clear_pbirs_details_fields()
+            # Отключаем кнопки управления
+            self._set_pbirs_buttons_enabled(False)
+            return
+        
+        # Получаем данные отчета из userData комбобокса
+        report_data = combo.itemData(index)
+        if not report_data:
+            self.main_window.log_message("Ошибка: данные отчета не найдены")
+            return
+        
+        # Обновляем поля информации об отчете
+        self._update_pbirs_details_fields(report_data)
+        # Включаем кнопки управления
+        self._set_pbirs_buttons_enabled(True)
+        self.main_window.log_message(f"Выбран отчет: {report_data.get('Name', 'Без имени')}")
+    
+    def _clear_pbirs_details_fields(self):
+        """Очищает поля информации об отчете на вкладке Детали PBIRS."""
+        if hasattr(self.main_window, 'pbirs_detail_name'):
+            self.main_window.pbirs_detail_name.setText("-")
+        if hasattr(self.main_window, 'pbirs_detail_id'):
+            self.main_window.pbirs_detail_id.setText("-")
+        if hasattr(self.main_window, 'pbirs_detail_folder'):
+            self.main_window.pbirs_detail_folder.setText("-")
+        if hasattr(self.main_window, 'pbirs_detail_creator'):
+            self.main_window.pbirs_detail_creator.setText("-")
+        if hasattr(self.main_window, 'pbirs_detail_sources'):
+            self.main_window.pbirs_detail_sources.setText("-")
+        if hasattr(self.main_window, 'pbirs_detail_refresh_status'):
+            self.main_window.pbirs_detail_refresh_status.setText("-")
+        if hasattr(self.main_window, 'pbirs_detail_last_refresh'):
+            self.main_window.pbirs_detail_last_refresh.setText("-")
+        if hasattr(self.main_window, 'pbirs_detail_next_refresh'):
+            self.main_window.pbirs_detail_next_refresh.setText("-")
+    
+    def _update_pbirs_details_fields(self, report_data):
+        """Обновляет поля информации об отчете на вкладке Детали PBIRS."""
+        from src.utils.pbirs_formatter import format_report_details
+        
+        # Форматируем детали отчета
+        formatted_text = format_report_details(report_data)
+        
+        # Парсим форматированный текст для заполнения полей (упрощенный подход)
+        # В реальности лучше использовать структурированные данные из report_data
+        if hasattr(self.main_window, 'pbirs_detail_name'):
+            self.main_window.pbirs_detail_name.setText(report_data.get('Name', '-'))
+        if hasattr(self.main_window, 'pbirs_detail_id'):
+            self.main_window.pbirs_detail_id.setText(report_data.get('Id', '-'))
+        if hasattr(self.main_window, 'pbirs_detail_folder'):
+            self.main_window.pbirs_detail_folder.setText(report_data.get('Path', '-'))
+        if hasattr(self.main_window, 'pbirs_detail_creator'):
+            self.main_window.pbirs_detail_creator.setText(report_data.get('CreatedBy', '-'))
+        
+        # Источники данных
+        if hasattr(self.main_window, 'pbirs_detail_sources'):
+            sources_brief = report_data.get('DataSourcesBrief', 'Нет источников')
+            self.main_window.pbirs_detail_sources.setText(sources_brief)
+        
+        # Статус обновления
+        if hasattr(self.main_window, 'pbirs_detail_refresh_status'):
+            last_status = report_data.get('LastStatus', 'Не запускался')
+            self.main_window.pbirs_detail_refresh_status.setText(last_status)
+        
+        # Последнее обновление
+        if hasattr(self.main_window, 'pbirs_detail_last_refresh'):
+            last_run = report_data.get('LastRunDisplayFull', report_data.get('LastRunDisplay', 'Никогда'))
+            self.main_window.pbirs_detail_last_refresh.setText(last_run)
+        
+        # Следующее обновление
+        if hasattr(self.main_window, 'pbirs_detail_next_refresh'):
+            next_run = report_data.get('NextRunDisplayDetailed', report_data.get('NextRunDisplay', 'Не запланировано'))
+            self.main_window.pbirs_detail_next_refresh.setText(next_run)
+    
+    def _set_pbirs_buttons_enabled(self, enabled):
+        """Включает или отключает кнопки управления на вкладке Детали PBIRS."""
+        if hasattr(self.main_window, 'pbirs_enable_btn'):
+            self.main_window.pbirs_enable_btn.setEnabled(enabled)
+        if hasattr(self.main_window, 'pbirs_disable_btn'):
+            self.main_window.pbirs_disable_btn.setEnabled(enabled)
+        if hasattr(self.main_window, 'pbirs_manual_refresh_btn'):
+            self.main_window.pbirs_manual_refresh_btn.setEnabled(enabled)
+    
+    def enable_pbirs_refresh(self):
+        """Включение автоматического обновления для выбранного отчета PBIRS."""
+        self.main_window.log_message("Включение обновления PBIRS (заглушка)")
+    
+    def disable_pbirs_refresh(self):
+        """Отключение автоматического обновления для выбранного отчета PBIRS."""
+        self.main_window.log_message("Отключение обновления PBIRS (заглушка)")
+    
+    def trigger_pbirs_manual_refresh(self):
+        """Ручной запуск обновления для выбранного отчета PBIRS."""
+        self.main_window.log_message("Ручной запуск обновления PBIRS (заглушка)")
+    
+    def add_pbirs_schedule_time(self):
+        """Добавление нового времени в расписание PBIRS."""
+        self.main_window.log_message("Добавление времени в расписание PBIRS (заглушка)")
+    
+    def remove_pbirs_schedule_time(self):
+        """Удаление выбранного времени из расписания PBIRS."""
+        self.main_window.log_message("Удаление времени из расписания PBIRS (заглушка)")
+    
+    def save_pbirs_schedule(self):
+        """Сохранение расписания для выбранного отчета PBIRS."""
+        self.main_window.log_message("Сохранение расписания PBIRS (заглушка)")
+    
+    def delete_pbirs_schedule(self):
+        """Удаление расписания для выбранного отчета PBIRS."""
+        self.main_window.log_message("Удаление расписания PBIRS (заглушка)")
