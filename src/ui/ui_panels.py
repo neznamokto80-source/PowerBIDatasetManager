@@ -7,13 +7,14 @@
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QComboBox,
-    QGroupBox, QTreeWidget, QCheckBox, QTableWidget, QHeaderView,
+    QGroupBox, QTreeWidget, QCheckBox, QRadioButton, QTableWidget, QHeaderView,
     QAbstractItemView, QTabWidget, QTextEdit, QFormLayout,
     QProgressBar, QLineEdit, QListWidget, QGridLayout, QFrame,
     QSizePolicy
 )
 from PyQt6.QtCore import Qt, QSize
-from PyQt6.QtGui import QFont
+from PyQt6.QtGui import QFont, QColor
+
 
 from .widgets import (
     create_group_box,
@@ -101,6 +102,27 @@ class UIPanels:
         self.main.monitor_status = create_label("Мониторинг не активен")
         monitor_layout.addWidget(self.main.monitor_status)
 
+        # RadioButton для выбора периодичности (единичный выбор)
+        period_layout = QHBoxLayout()
+        period_layout.setSpacing(5)
+
+        self.main.monitor_radio_15 = QRadioButton("15 сек")
+        self.main.monitor_radio_30 = QRadioButton("30 сек")
+        self.main.monitor_radio_60 = QRadioButton("60 сек")
+
+        # По умолчанию выбран 30 сек
+        self.main.monitor_radio_30.setChecked(True)
+
+        # При клике на radio button обновляем заголовок группы и интервал
+        self.main.monitor_radio_15.clicked.connect(self.main._update_monitor_group_title)
+        self.main.monitor_radio_30.clicked.connect(self.main._update_monitor_group_title)
+        self.main.monitor_radio_60.clicked.connect(self.main._update_monitor_group_title)
+
+        period_layout.addWidget(self.main.monitor_radio_15)
+        period_layout.addWidget(self.main.monitor_radio_30)
+        period_layout.addWidget(self.main.monitor_radio_60)
+        monitor_layout.addLayout(period_layout)
+
         self.main.start_monitor_btn = create_button("Запустить мониторинг", callback=self.main.start_monitoring)
         monitor_layout.addWidget(self.main.start_monitor_btn)
 
@@ -108,8 +130,8 @@ class UIPanels:
         self.main.stop_monitor_btn.setEnabled(False)
         monitor_layout.addWidget(self.main.stop_monitor_btn)
 
-        monitor_group = create_group_box("Мониторинг (переодичность опроса 60 сек)", monitor_layout)
-        layout.addWidget(monitor_group)
+        self.main.monitor_group = create_group_box("Мониторинг (периодичность опроса 30 сек)", monitor_layout)
+        layout.addWidget(self.main.monitor_group)
 
         # Группа "Настройки"
         settings_layout = QVBoxLayout()
@@ -530,6 +552,17 @@ class UIPanels:
         filter_layout.addWidget(source_filter_label)
         filter_layout.addWidget(self.main.pbirs_sources_source_filter)
         
+        # Фильтр по типу (Kind) с редактируемым полем и строгим соответствием
+        kind_filter_label = QLabel("Тип:")
+        self.main.pbirs_sources_kind_filter = QComboBox()
+        self.main.pbirs_sources_kind_filter.setEditable(True)
+        self.main.pbirs_sources_kind_filter.setPlaceholderText("введите тип...")
+        # Подключаем фильтрацию по мере ввода
+        self.main.pbirs_sources_kind_filter.currentIndexChanged.connect(self.main.on_pbirs_sources_filter_changed)
+        self.main.pbirs_sources_kind_filter.editTextChanged.connect(self.main.on_pbirs_sources_filter_changed)
+        filter_layout.addWidget(kind_filter_label)
+        filter_layout.addWidget(self.main.pbirs_sources_kind_filter)
+        
         # Фильтр по пользователю (Username)
         user_filter_label = QLabel("Пользователь:")
         self.main.pbirs_sources_user_filter = QComboBox()
@@ -544,25 +577,29 @@ class UIPanels:
         # Настраиваем пропорциональное распределение ширины
         filter_layout.setStretch(0, 1)  # Метка "Название отчета"
         filter_layout.setStretch(1, 2)  # Поле ввода названия отчета
-        filter_layout.setStretch(2, 1)  # Метка "ConnectionString"
+        filter_layout.setStretch(2, 1)  # Метка "Источники"
         filter_layout.setStretch(3, 2)  # Комбобокс ConnectionString
-        filter_layout.setStretch(4, 1)  # Метка "Пользователь"
-        filter_layout.setStretch(5, 2)  # Комбобокс Пользователь
+        filter_layout.setStretch(4, 1)  # Метка "Тип"
+        filter_layout.setStretch(5, 2)  # Комбобокс Тип
+        filter_layout.setStretch(6, 1)  # Метка "Пользователь"
+        filter_layout.setStretch(7, 2)  # Комбобокс Пользователь
         
         layout.addLayout(filter_layout)
         
         # Таблица источников данных
         self.main.pbirs_sources_table = QTableWidget()
-        self.main.pbirs_sources_table.setColumnCount(4)
+        self.main.pbirs_sources_table.setColumnCount(6)
         self.main.pbirs_sources_table.setHorizontalHeaderLabels([
-            "Папка", "Название отчета", "ConnectionString", "Пользователь"
+            "Папка", "Название отчета", "Источник", "Тип", "Дата изменения", "Пользователь"
         ])
         # Настройка ширины колонок
         header = self.main.pbirs_sources_table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)  # Папка
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)  # Название отчета
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)  # ConnectionString
-        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)  # Пользователь
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)  # Тип (Kind)
+        header.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)  # Дата изменения
+        header.setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)  # Пользователь
         
         self.main.pbirs_sources_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.main.pbirs_sources_table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)

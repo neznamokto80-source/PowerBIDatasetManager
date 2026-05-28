@@ -16,6 +16,7 @@ from src.core.powerbi_report_server_client import PowerBIReportServerClient
 from src.core.connection_manager import ConnectionManager
 from src.operations.base_operations import BaseOperations
 from src.utils.pbirs_data_enricher import enrich_reports_list, extract_data_sources_for_table
+from src.utils.pbirs_formatter import format_datetime
 
 logger = logging.getLogger(__name__)
 
@@ -197,19 +198,31 @@ class PBIRSOperations(BaseOperations):
                     ds_name = ds.get('Name', 'Без имени')
                     if not isinstance(ds_name, str):
                         ds_name = str(ds_name)
-                    # Извлекаем Username из вложенного объекта DataModelDataSource
+                    # Извлекаем Username и Kind из вложенного объекта DataModelDataSource
                     data_model = ds.get('DataModelDataSource', {})
                     if isinstance(data_model, dict):
                         username = data_model.get('Username', '')
+                        kind = data_model.get('Kind', '')
                     else:
                         username = ''
+                        kind = ''
+                    # Извлекаем даты из корня источника данных
+                    created_date_raw = ds.get('CreatedDate', '')
+                    modified_date_raw = ds.get('ModifiedDate', '')
+                    created_date_formatted = format_datetime(created_date_raw) if created_date_raw else ''
+                    modified_date_formatted = format_datetime(modified_date_raw) if modified_date_raw else ''
                     source_item = {
                         'Folder': folder,
                         'ReportName': report_name,
                         'DataSource': ds_name,
                         'ConnectionString': ds.get('ConnectionString', ''),
                         'DataSourceType': ds.get('DataSourceType', 'Unknown'),
-                        'Username': username
+                        'Username': username,
+                        'Kind': kind,
+                        'CreatedDate': created_date_raw,
+                        'CreatedDateFormatted': created_date_formatted,
+                        'ModifiedDate': modified_date_raw,
+                        'ModifiedDateFormatted': modified_date_formatted
                     }
                     sources_data.append(source_item)
             
@@ -221,6 +234,7 @@ class PBIRSOperations(BaseOperations):
                 # Определяем текущие фильтры (если поля существуют)
                 report_filter = None
                 source_filter = None
+                kind_filter = None
                 if hasattr(self.main_window, 'pbirs_sources_report_filter'):
                     report_filter = self.main_window.pbirs_sources_report_filter.text()
                 if hasattr(self.main_window, 'pbirs_sources_source_filter'):
@@ -229,8 +243,13 @@ class PBIRSOperations(BaseOperations):
                         source_filter = self.main_window.pbirs_sources_source_filter.currentText()
                         if source_filter == "Все источники":
                             source_filter = None
+                if hasattr(self.main_window, 'pbirs_sources_kind_filter'):
+                    combo = self.main_window.pbirs_sources_kind_filter
+                    kind_filter = combo.currentText().strip()
+                    if not kind_filter or kind_filter == "Все типы":
+                        kind_filter = None
                 
-                self.main_window.update_pbirs_sources_table(sources_data, report_filter, source_filter)
+                self.main_window.update_pbirs_sources_table(sources_data, report_filter, source_filter, kind_filter)
                 self.main_window.log_message(f"✓ Таблица источников PBIRS обновлена (записей: {len(sources_data)})")
             
             # Заполняем комбобокс фильтра источников данных уникальными значениями
@@ -281,6 +300,28 @@ class PBIRSOperations(BaseOperations):
                 for username in sorted(unique_users):
                     combo.addItem(username)
                 self.main_window.log_message(f"  Заполнен фильтр пользователей: {len(unique_users)} уникальных значений")
+            
+            # Заполняем комбобокс фильтра типов (Kind) уникальными значениями
+            if hasattr(self.main_window, 'pbirs_sources_kind_filter'):
+                combo = self.main_window.pbirs_sources_kind_filter
+                combo.blockSignals(True)
+                combo.clear()
+                combo.addItem("Все типы")
+                # Собираем уникальные Kind
+                unique_kinds = set()
+                for source_item in sources_data:
+                    kind = source_item.get('Kind', '')
+                    if kind:
+                        if not isinstance(kind, str):
+                            try:
+                                kind = str(kind)
+                            except Exception:
+                                continue
+                        unique_kinds.add(kind)
+                for kind in sorted(unique_kinds):
+                    combo.addItem(kind)
+                combo.blockSignals(False)
+                self.main_window.log_message(f"  Заполнен фильтр типов: {len(unique_kinds)} уникальных значений")
             
             # Обновляем таблицу детальной информации PBIRS
             if hasattr(self.main_window, 'update_pbirs_details_table'):

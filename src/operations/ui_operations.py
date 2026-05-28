@@ -276,7 +276,15 @@ class UIOperations:
                 if not source_filter or source_filter == "Все источники":
                     source_filter = None
         
-        # Получаем фильтр по пользователю
+        # Получаем фильтр по типу (Kind) — строгое соответствие
+        kind_filter = None
+        if hasattr(self.main_window, 'pbirs_sources_kind_filter'):
+            combo = self.main_window.pbirs_sources_kind_filter
+            text = combo.currentText().strip()
+            if text and text != "Все типы":
+                kind_filter = text
+        
+        # Получаем фильтр по пользователю — строгое соответствие
         user_filter = None
         if hasattr(self.main_window, 'pbirs_sources_user_filter'):
             combo = self.main_window.pbirs_sources_user_filter
@@ -288,10 +296,11 @@ class UIOperations:
         if hasattr(self.main_window, 'pbirs_sources_data'):
             sources_data = self.main_window.pbirs_sources_data
             if hasattr(self.main_window, 'update_pbirs_sources_table'):
-                self.main_window.update_pbirs_sources_table(sources_data, report_filter, source_filter, user_filter)
+                self.main_window.update_pbirs_sources_table(sources_data, report_filter, source_filter, kind_filter, user_filter)
                 self.main_window.log_message(
                     f"Фильтр источников обновлен: отчет='{report_filter or 'нет'}', "
                     f"ConnectionString='{source_filter or 'нет'}', "
+                    f"тип='{kind_filter or 'нет'}', "
                     f"пользователь='{user_filter or 'нет'}'"
                 )
             else:
@@ -301,6 +310,7 @@ class UIOperations:
                     folder = source_item.get('Folder', '')
                     report_name = source_item.get('ReportName', '')
                     connection_string = source_item.get('ConnectionString', '')
+                    kind = source_item.get('Kind', '')
                     username = source_item.get('Username', '')
                     
                     # Проверяем фильтр по названию отчета
@@ -315,18 +325,24 @@ class UIOperations:
                         connection_string_lower = connection_string.lower()
                         source_match = filter_lower in connection_string_lower
                     
-                    # Проверяем фильтр по пользователю
+                    # Проверяем фильтр по типу (Kind) — строгое соответствие
+                    kind_match = True
+                    if kind_filter:
+                        kind_match = kind.lower() == kind_filter.lower()
+                    
+                    # Проверяем фильтр по пользователю — строгое соответствие
                     user_match = True
                     if user_filter:
-                        user_match = user_filter.lower() in username.lower()
+                        user_match = username.lower() == user_filter.lower()
                     
-                    if report_match and source_match and user_match:
+                    if report_match and source_match and kind_match and user_match:
                         filtered.append(source_item)
                 
                 self.main_window.log_message(
                     f"Отфильтровано источников: {len(filtered)} "
                     f"(отчет: '{report_filter or 'нет'}', "
                     f"ConnectionString: '{source_filter or 'нет'}', "
+                    f"тип: '{kind_filter or 'нет'}', "
                     f"пользователь: '{user_filter or 'нет'}')"
                 )
 
@@ -599,11 +615,12 @@ class UIOperations:
         
         menu.exec(sender.mapToGlobal(position))
     
-    # ========== Методы справки (из HelpMethods) ==========
+    # ========== Методы справки ==========
     
     def show_help(self):
         """Показывает диалог справки с подробным описанием."""
-        help_text = self._get_help_text()
+        from src.utils.help_text import get_help_text
+        help_text = get_help_text()
 
         dialog = QDialog(self.main_window)
         dialog.setWindowTitle("Справка - Power BI Dataset Monitor & Manager")
@@ -623,118 +640,6 @@ class UIOperations:
         layout.addWidget(close_btn, alignment=Qt.AlignmentFlag.AlignCenter)
 
         dialog.exec()
-
-    def _get_help_text(self) -> str:
-        """Возвращает HTML-текст справки."""
-        return """
-        <h1>Power BI Dataset Monitor & Manager</h1>
-        <p><b>Версия:</b> 1.0.0</p>
-        <p>Приложение для мониторинга и управления датасетами Microsoft Power BI.</p>
-
-        <h2>1. Общее описание</h2>
-        <p>С помощью этого приложения вы можете:</p>
-        <ul>
-            <li>подключаться к Power BI через интерактивную аутентификацию (Azure CLI или браузер);</li>
-            <li>просматривать список рабочих областей и датасетов;</li>
-            <li>видеть статус последнего обновления, расписание автоматического обновления, следующее запланированное обновление;</li>
-            <li>включать / отключать автоматическое обновление для одного или нескольких датасетов;</li>
-            <li>запускать ручное обновление датасета;</li>
-            <li>фильтровать датасеты по различным критериям;</li>
-            <li>запускать автоматический мониторинг с периодическим опросом (30 секунд);</li>
-            <li>просматривать логи работы приложения.</li>
-        </ul>
-
-        <h2>2. Подключение к Power BI</h2>
-        <ol>
-            <li>Нажмите кнопку <b>«Подключить»</b> в левой панели.</li>
-            <li>Приложение попытается получить токен через Azure CLI (если он настроен) или откроет браузер для интерактивного входа.</li>
-            <li>После успешной аутентификации левая панель разблокируется, загрузятся рабочие области. Активной станет первая рабочая область, автоматически начнётся загрузка датасетов.</li>
-        </ol>
-        <p><b>Примечание:</b> Если Azure CLI не используется, будет предложен браузерный вход. Выполните вход в свою учётную запись Power BI.</p>
-
-        <h2>3. Интерфейс приложения</h2>
-        <h3>Главное окно</h3>
-        <ul>
-            <li><b>Левая панель</b> – навигация и управление: кнопка «Подключить», выбор рабочей области, дерево датасетов, фильтры, блок мониторинга.</li>
-            <li><b>Центральная панель</b> – вкладки «Обзор» и «Детали»:
-                <ul>
-                    <li>«Обзор»: статистика, таблица датасетов, прогресс-бар.</li>
-                    <li>«Детали»: подробная информация о выбранном датасете и кнопки управления.</li>
-                </ul>
-            </li>
-            <li><b>Нижняя панель</b> – область логов (текст с автоформатированием, есть кнопка «Очистить логи»).</li>
-        </ul>
-
-        <h3>Кнопки управления датасетов (вкладка «Детали»)</h3>
-        <ul>
-            <li><b>Включить обновление</b> – активирует автоматическое обновление датасета по существующему или стандартному расписанию (ежедневно в 03:00 по UTC+6, что соответствует 02:00 по Екатеринбургу UTC+5).</li>
-            <li><b>Отключить обновление</b> – выключает автоматическое обновление.</li>
-            <li><b>Запустить обновление</b> – инициирует ручное обновление (полное, Full).</li>
-        </ul>
-
-        <h3>Новые элементы интерфейса (май 2026)</h3>
-        <p>Вкладка «Детали» была оптимизирована для лучшего использования пространства:</p>
-        <ul>
-            <li><b>Фильтр выбора датасета</b> – выпадающий список для быстрого выбора датасета без перехода в таблицу.</li>
-            <li><b>Информация о датасете в два столбца</b> – основные сведения слева, дополнительные справа, разделены вертикальной линией.</li>
-            <li><b>Управление расписанием</b> – постоянно видимый блок с днями недели в две колонки и списком времени срабатывания в две колонки по 6 строк.</li>
-            <li><b>Добавление нового времени</b> – панель справа от списка: поля для ввода часов и минут, кнопки «Добавить время» и «Удалить выбранное».</li>
-            <li><b>Панель логов внизу окна</b> – логи теперь отображаются в нижней части интерфейса, а не в отдельной вкладке, что обеспечивает постоянную видимость.</li>
-            <li><b>Кнопки «Справка» и «Тестовые данные»</b> перенесены в правую часть панели инструментов для более удобного доступа.</li>
-        </ul>
-
-        <h2>4. Детальная информация о датасете</h2>
-        <ul>
-            <li><b>Двойной клик</b> по строке в таблице или щелчок по элементу в дереве откроет диалоговое окно с полной информацией (ID, расписание, история последних обновлений, детали последнего обновления).</li>
-            <li>Во вкладке «Детали» при выборе датасета отображается краткая сводка и доступны три кнопки управления.</li>
-        </ul>
-
-        <h2>5. Фильтрация датасетов</h2>
-        <p>Чекбоксы в левой панели позволяют отфильтровать таблицу и дерево:</p>
-        <ul>
-            <li><b>Только с включенным обновлением</b> – показывать датасеты, у которых автообновление активно.</li>
-            <li><b>Только с выключенным обновлением</b> – датасеты, где расписание выключено.</li>
-            <li><b>С ошибками при обновлении</b> – датасеты, последнее обновление которых завершилось с ошибкой.</li>
-            <li><b>Все кроме not_use</b> – исключает датасеты, в имени которых встречается подстрока «not_use».</li>
-            <li><b>В процессе обновления</b> – датасеты со статусом InProgress или Refreshing.</li>
-        </ul>
-        <p>Фильтры применяются <b>одновременно</b> (логическое «И»).</p>
-
-        <h2>6. Пакетные операции (контекстное меню)</h2>
-        <p>Правый клик по таблице датасетов открывает контекстное меню. При выделении нескольких строк доступны:</p>
-        <ul>
-            <li>Включить автообновление для выбранных</li>
-            <li>Отключить автообновление для выбранных</li>
-            <li>Запустить обновление для выбранных</li>
-            <li>Обновить информацию</li>
-            <li>Показать детали</li>
-        </ul>
-
-        <h2>7. Мониторинг в реальном времени</h2>
-        <p>Блок «Мониторинг (периодичность опроса 30 сек)»:</p>
-        <ul>
-            <li><b>Запустить мониторинг</b> – включает таймер, который каждые 30 секунд автоматически вызывает обновление данных.</li>
-            <li><b>Остановить мониторинг</b> – выключает таймер.</li>
-        </ul>
-        <p>Мониторинг не запускается автоматически при старте приложения.</p>
-
-        <h2>8. Логирование</h2>
-        <p>Все действия записываются в нижнюю панель логов и в файл <code>powerbi_monitor.log</code> в папке с программой.</p>
-
-        <h2>9. Устранение возможных проблем</h2>
-        <table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse;">
-            <tr><th>Проблема</th><th>Возможное решение</th></tr>
-            <tr><td>Ошибка аутентификации «Не удалось получить токен»</td><td>Убедитесь, что вы выполнили вход в Power BI Desktop или через <code>az login</code>. При интерактивной аутентификации разрешите доступ приложению.</td></tr>
-            <tr><td>Нет рабочих областей в списке</td><td>Проверьте, есть ли у вас доступ хотя бы к одной рабочей области. Для бесплатного аккаунта Power BI рабочие области могут не отображаться.</td></tr>
-            <tr><td>Не удаётся включить автообновление – ошибка 403</td><td>У вас недостаточно прав на изменение расписания датасета. Требуется роль администратора или участника с правами на редактирование.</td></tr>
-            <tr><td>Расписание отображается некорректно (не те времена)</td><td>Приложение конвертирует время из UTC+6 (Central Asia Standard Time) в UTC+5 (Екатеринбург). Если ваш часовой пояс отличается, измените значения <code>from_offset</code> и <code>to_offset</code> в коде.</td></tr>
-        </table>
-
-        <h2>10. Контакты разработчика</h2>
-        <p>По вопросам доработки или сообщениям об ошибках обращайтесь @BDV_80".</p>
-
-        <p><i>Версия приложения: 1.0.0</i><br><i>Дата составления справки: Май 2026</i></p>
-        """
     
     # ========== Методы для вкладки "Детали PBIRS" ==========
     
@@ -871,7 +776,7 @@ class UIOperations:
         if hasattr(self.main_window, 'pbirs_detail_creator'):
             self.main_window.pbirs_detail_creator.setText(report_data.get('CreatedBy', '-'))
 
-        # Источники данных (полные, каждый с новой строки)
+        # Источники данных (полные, каждый с новой строки, с типом, строкой подключения и пользователем)
         if hasattr(self.main_window, 'pbirs_detail_sources'):
             sources_list = report_data.get('DataSourcesList', [])
             if sources_list:
@@ -880,9 +785,18 @@ class UIOperations:
                     if ds is None:
                         continue
                     conn_str = ds.get('ConnectionString', '')
+                    kind = ds.get('Kind', '')
+                    username = ds.get('Username', '')
+                    if kind:
+                        lines.append(f"  тип: {kind}")
                     if conn_str:
-                        lines.append(conn_str)
-                sources_text = "\n".join(lines) if lines else "Нет источников"
+                        lines.append(f"  ConnectionString: {conn_str}")
+                    else:
+                        lines.append("  ConnectionString: (нет строки подключения)")
+                    if username:
+                        lines.append(f"  Пользователь: {username}")
+                    lines.append("")  # пустая строка между источниками
+                sources_text = "\n".join(lines).rstrip("\n") if lines else "Нет источников"
             else:
                 sources_text = "Нет источников"
             self.main_window.pbirs_detail_sources.setText(sources_text)
@@ -962,7 +876,7 @@ class UIOperations:
         self.main_window.log_message("Удаление времени из расписания PBIRS (заглушка)")
     
     def save_pbirs_schedule(self):
-        """Создание ежедневного расписания для выбранного отчета PBIRS."""
+        """Создание расписания для выбранного отчета PBIRS через диалог."""
         # Получаем данные выбранного отчёта из комбобокса
         combo = self.main_window.pbirs_details_report_combo
         index = combo.currentIndex()
@@ -989,53 +903,149 @@ class UIOperations:
             self.main_window.log_message("✗ Не найден путь к отчёту (Path)")
             return
         
-        # Диалог для ввода времени запуска
-        from PyQt6.QtWidgets import QInputDialog
+        # Проверяем, назначен ли пользователь для всех источников данных отчёта
+        data_sources = report_data.get('DataSourcesList', [])
+        sources_without_user = []
+        for ds in data_sources:
+            if ds is None:
+                continue
+            username = ds.get('Username', '') or ''
+            if not username.strip():
+                # Формируем название датасета: Kind - ConnectionString
+                data_model = ds.get('DataModelDataSource', {}) or {}
+                ds_kind = data_model.get('Kind', '') if isinstance(data_model, dict) else ''
+                conn_str = ds.get('ConnectionString', '')
+                if conn_str and ';' in conn_str:
+                    conn_str = conn_str.split(';')[0]
+                if ds_kind and conn_str:
+                    ds_label = f"{ds_kind} - {conn_str}"
+                elif conn_str:
+                    ds_label = conn_str
+                else:
+                    ds_label = ds.get('Name', 'Без имени')
+                sources_without_user.append(ds_label)
         
-        # Ввод часов
-        hour, ok = QInputDialog.getInt(
-            self.main_window,
-            "Создание расписания",
-            f"Введите час запуска (0-23) для отчёта '{report_name}':",
-            9, 0, 23, 1
-        )
-        if not ok:
+        if sources_without_user:
+            sources_str = "\n".join(f"  • {name}" for name in sources_without_user)
+            
+            # Формируем ссылку на страницу настройки источников данных в веб-интерфейсе
+            report_name_for_url = report_data.get('Name', '')
+            client = self.main_window.client
+            if client and hasattr(client, 'base_url'):
+                server_base = client.base_url.replace('/api/v2.0', '')
+            else:
+                server_base = 'http://localhost/Reports'
+            datasource_url = f"{server_base}/manage/catalogitem/datasources/{report_name_for_url}"
+            
+            msg = (
+                f"Для следующих датасетов отчёта '{report_name}' "
+                f"не назначен пользователь и пароль:\n\n{sources_str}\n\n"
+                f"Расписание может не работать без учётных данных."
+            )
+            
+            # Создаём кастомный диалог с кнопками "Закрыть" и "Перейти к заполнению"
+            from PyQt6.QtWidgets import QDialogButtonBox
+            dialog = QMessageBox(self.main_window)
+            dialog.setWindowTitle("Внимание: отсутствуют учётные данные")
+            dialog.setIcon(QMessageBox.Icon.Warning)
+            dialog.setText(msg)
+            
+            close_btn = dialog.addButton("Закрыть", QMessageBox.ButtonRole.RejectRole)
+            go_btn = dialog.addButton("Перейти к заполнению", QMessageBox.ButtonRole.ActionRole)
+            
+            dialog.exec()
+            
+            if dialog.clickedButton() == go_btn:
+                import webbrowser
+                webbrowser.open(datasource_url)
+                self.main_window.log_message(
+                    f"Открыт веб-интерфейс для настройки источников: {datasource_url}"
+                )
+            
+            self.main_window.log_message(
+                f"Создание расписания отменено: для датасетов {', '.join(sources_without_user)} "
+                f"не назначен пользователь"
+            )
+            return
+        
+        # Открываем диалог создания расписания
+        from src.ui.pbirs_schedule_dialog import PBIRSScheduleDialog
+        
+        dialog = PBIRSScheduleDialog(self.main_window, report_name)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
             self.main_window.log_message("Создание расписания отменено")
             return
         
-        # Ввод минут
-        minute, ok = QInputDialog.getInt(
-            self.main_window,
-            "Создание расписания",
-            "Введите минуты запуска (0-59):",
-            0, 0, 59, 1
-        )
-        if not ok:
-            self.main_window.log_message("Создание расписания отменено")
+        result = dialog.get_result()
+        if not result:
             return
         
-        # Формируем дату старта — завтра в указанное время
-        from datetime import datetime, timedelta
-        tomorrow = datetime.now() + timedelta(days=1)
+        schedule_name = result["name"]
+        period_type = result["period_type"]
+        selected_days = result["days"]
+        hour = result["hour"]
+        minute = result["minute"]
+        
+        # Формируем дату старта — завтра в указанное время (часовой пояс UTC+5)
+        from datetime import datetime, timedelta, timezone
+        local_tz = timezone(timedelta(hours=5))
+        tomorrow = datetime.now(local_tz) + timedelta(days=1)
         start_datetime = tomorrow.replace(hour=hour, minute=minute, second=0, microsecond=0)
-        start_datetime_str = start_datetime.strftime("%Y-%m-%dT%H:%M:%S")
+        start_datetime_str = start_datetime.strftime("%Y-%m-%dT%H:%M:%S+05:00")
         
-        # Формируем тело запроса с CatalogItemPath
+        # Формируем Recurrence в зависимости от выбранного типа периодичности
+        # API PBIRS требует, чтобы неиспользуемые типы были null
+        recurrence = {
+            "MinuteRecurrence": None,
+            "DailyRecurrence": None,
+            "WeeklyRecurrence": None,
+            "MonthlyRecurrence": None,
+            "MonthlyDOWRecurrence": None,
+        }
+        
+        period_label = ""  # для лога
+        
+        if period_type == "daily":
+            recurrence["DailyRecurrence"] = {
+                "DaysInterval": 1
+            }
+            period_label = "Ежедневно"
+            
+        elif period_type == "weekly":
+            recurrence["WeeklyRecurrence"] = {
+                "WeeksInterval": 1,
+                "WeeksIntervalSpecified": True,
+                "DaysOfWeek": {
+                    "Sunday": "Sunday" in selected_days,
+                    "Monday": "Monday" in selected_days,
+                    "Tuesday": "Tuesday" in selected_days,
+                    "Wednesday": "Wednesday" in selected_days,
+                    "Thursday": "Thursday" in selected_days,
+                    "Friday": "Friday" in selected_days,
+                    "Saturday": "Saturday" in selected_days,
+                }
+            }
+            day_names_ru = {
+                "Monday": "Пн", "Tuesday": "Вт", "Wednesday": "Ср",
+                "Thursday": "Чт", "Friday": "Пт", "Saturday": "Сб", "Sunday": "Вс"
+            }
+            days_str = ", ".join(day_names_ru[d] for d in selected_days)
+            period_label = f"[{days_str}]"
+        
+        # Формируем тело запроса
         plan_data = {
             "CatalogItemPath": report_path,
             "EventType": "DataModelRefresh",
-            "Description": f"Ежедневное обновление в {hour:02d}:{minute:02d}",
+            "Description": schedule_name,
             "Schedule": {
                 "Definition": {
                     "StartDateTime": start_datetime_str,
+                    "EndDate": "0001-01-01T00:00:00Z",
                     "EndDateSpecified": False,
-                    "Recurrence": {
-                        "DailyRecurrence": {
-                            "DaysInterval": 1
-                        }
-                    }
+                    "Recurrence": recurrence,
                 }
-            }
+            },
+            "ParameterValues": []
         }
         
         try:
@@ -1045,12 +1055,14 @@ class UIOperations:
                 return
             
             client.create_cache_refresh_plan(plan_data)
+            
             self.main_window.log_message(
-                f"✓ Расписание создано для '{report_name}': ежедневно в {hour:02d}:{minute:02d}"
+                f"✓ Расписание '{schedule_name}' создано для '{report_name}': "
+                f"{period_label} в {hour:02d}:{minute:02d}"
             )
             
-            # Обновляем данные через 2.5 секунды
-            QTimer.singleShot(2500, self.main_window.load_pbirs_reports)
+            # Обновляем данные через 1 секунду
+            QTimer.singleShot(1000, self.main_window.load_pbirs_reports)
             
         except Exception as e:
             self.main_window.log_message(f"✗ Ошибка при создании расписания: {e}")
@@ -1104,11 +1116,66 @@ class UIOperations:
             client.delete_cache_refresh_plan(plan_id)
             self.main_window.log_message(f"✓ Расписание '{plan_name}' успешно удалено")
             
-            # Обновляем данные через 2.5 секунды после удаления (как при нажатии кнопки "Обновить")
-            QTimer.singleShot(2500, self.main_window.load_pbirs_reports)
+            # Обновляем данные через 1 секунду после удаления
+            QTimer.singleShot(1000, self.main_window.load_pbirs_reports)
             
         except Exception as e:
             self.main_window.log_message(f"✗ Ошибка при удалении расписания: {e}")
+
+    def execute_pbirs_schedule(self):
+        """Немедленный запуск выбранного расписания обновления кэша PBIRS."""
+        table = self.main_window.pbirs_refresh_plans_table
+        current_row = table.currentRow()
+
+        if current_row < 0:
+            self.main_window.log_message("✗ Не выбрано расписание для запуска")
+            return
+
+        # Получаем объект плана из userData первой ячейки
+        plan_item = table.item(current_row, 0)
+        if not plan_item:
+            self.main_window.log_message("✗ Не удалось получить данные расписания")
+            return
+
+        plan = plan_item.data(Qt.ItemDataRole.UserRole)
+        if not plan:
+            self.main_window.log_message("✗ Не удалось получить данные расписания")
+            return
+
+        plan_id = plan.get('Id') or plan.get('PlanId')
+        plan_name = plan.get('Description') or plan.get('Name', 'Без названия')
+
+        if not plan_id:
+            self.main_window.log_message(f"✗ Не найден ID расписания для '{plan_name}'")
+            return
+
+        # Подтверждение запуска
+        reply = QMessageBox.question(
+            self.main_window,
+            "Подтверждение запуска",
+            f"Запустить обновление '{plan_name}' сейчас?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+
+        if reply != QMessageBox.StandardButton.Yes:
+            self.main_window.log_message("Запуск отменён")
+            return
+
+        try:
+            client = self.main_window.client
+            if not client or not hasattr(client, 'execute_cache_refresh_plan'):
+                self.main_window.log_message("✗ Клиент PBIRS не инициализирован")
+                return
+
+            client.execute_cache_refresh_plan(plan_id)
+            self.main_window.log_message(f"✓ Расписание '{plan_name}' запущено на выполнение")
+
+            # Обновляем данные через 1 секунду
+            QTimer.singleShot(1000, self.main_window.load_pbirs_reports)
+
+        except Exception as e:
+            self.main_window.log_message(f"✗ Ошибка при запуске расписания: {e}")
 
     def show_pbirs_refresh_plans_context_menu(self, position):
         """Показывает контекстное меню для таблицы расписаний PBIRS."""
@@ -1126,8 +1193,15 @@ class UIOperations:
         has_selected_plan = current_row >= 0 and table.item(current_row, 0) is not None
         
         if has_selected_plan:
+            # Разделитель перед действиями над выбранным расписанием
+            menu.addSeparator()
+
+            execute_action = QAction("Обновить сейчас", self.main_window)
+            execute_action.triggered.connect(self.main_window.execute_pbirs_schedule)
+            menu.addAction(execute_action)
+
             delete_action = QAction("Удалить расписание", self.main_window)
             delete_action.triggered.connect(self.main_window.delete_pbirs_schedule)
             menu.addAction(delete_action)
-        
+
         menu.exec(table.viewport().mapToGlobal(position))
