@@ -388,7 +388,7 @@ class PowerBIMonitorUI(QMainWindow):
         # Автоматически подгоняем ширину колонок
         #table.resizeColumnsToContents()
     
-    def update_pbirs_sources_table(self, sources_data, report_filter=None, source_filter=None, user_filter=None):
+    def update_pbirs_sources_table(self, sources_data, report_filter=None, source_filter=None, kind_filter=None, user_filter=None):
         """
         Заполняет таблицу источников данных PBIRS.
         
@@ -397,7 +397,8 @@ class PowerBIMonitorUI(QMainWindow):
                 Каждый словарь должен содержать ключи: Folder, ReportName, DataSource, ConnectionString
             report_filter: Строка для фильтрации по названию отчета (None - без фильтра)
             source_filter: Строка для фильтрации по ConnectionString (None - без фильтра)
-            user_filter: Строка для фильтрации по пользователю (None - без фильтра)
+            kind_filter: Строка для фильтрации по типу Kind (None - без фильтра, строгое соответствие)
+            user_filter: Строка для фильтрации по пользователю (None - без фильтра, строгое соответствие)
         """
         if not hasattr(self, 'pbirs_sources_table'):
             return
@@ -414,6 +415,7 @@ class PowerBIMonitorUI(QMainWindow):
             folder = source_item.get('Folder', '')
             report_name = source_item.get('ReportName', '')
             connection_string = source_item.get('ConnectionString', '')
+            kind = source_item.get('Kind', '')
             username = source_item.get('Username', '')
             
             # Проверяем фильтр по названию отчета
@@ -428,12 +430,17 @@ class PowerBIMonitorUI(QMainWindow):
                 connection_string_lower = connection_string.lower()
                 source_match = filter_lower in connection_string_lower
             
-            # Проверяем фильтр по пользователю
+            # Проверяем фильтр по типу (Kind) — строгое соответствие
+            kind_match = True
+            if kind_filter and kind_filter.strip():
+                kind_match = kind.lower() == kind_filter.lower()
+            
+            # Проверяем фильтр по пользователю — строгое соответствие
             user_match = True
             if user_filter and user_filter.strip():
-                user_match = user_filter.lower() in username.lower()
+                user_match = username.lower() == user_filter.lower()
             
-            if report_match and source_match and user_match:
+            if report_match and source_match and kind_match and user_match:
                 filtered_sources.append(source_item)
         
         # Устанавливаем количество строк
@@ -453,6 +460,7 @@ class PowerBIMonitorUI(QMainWindow):
             data_source_type = source_item.get('DataSourceType', '')
             created_by = source_item.get('CreatedBy', '')
             created_date = source_item.get('CreatedDateFormatted', '')
+            modified_date = source_item.get('ModifiedDateFormatted', '')
             
             # Обрезаем длинные строки
             if len(connection_string) > 100:
@@ -461,20 +469,31 @@ class PowerBIMonitorUI(QMainWindow):
                 display_string = connection_string
             table.setItem(row, 2, QTableWidgetItem(display_string))
             
-            # Колонка 3: Пользователь
+            # Колонка 3: Тип (Kind)
+            kind = source_item.get('Kind', '')
+            table.setItem(row, 3, QTableWidgetItem(kind))
+            
+            # Колонка 4: Дата изменения
+            table.setItem(row, 4, QTableWidgetItem(modified_date))
+            
+            # Колонка 5: Пользователь
             username = source_item.get('Username', '')
-            table.setItem(row, 3, QTableWidgetItem(username))
+            table.setItem(row, 5, QTableWidgetItem(username))
             
             # Создаем расширенный tooltip с дополнительной информацией
             tooltip_lines = []
             if connection_string:
-                tooltip_lines.append(f"ConnectionString: {connection_string}")
+                tooltip_lines.append(f"Источник: {connection_string}")
             if data_source_type:
                 tooltip_lines.append(f"Тип источника: {data_source_type}")
+            if kind:
+                tooltip_lines.append(f"Тип: {kind}")
             if created_by:
                 tooltip_lines.append(f"Создатель: {created_by}")
             if created_date:
                 tooltip_lines.append(f"Создан: {created_date}")
+            if modified_date:
+                tooltip_lines.append(f"Изменён: {modified_date}")
             if username:
                 tooltip_lines.append(f"Пользователь: {username}")
             
@@ -708,6 +727,10 @@ class PowerBIMonitorUI(QMainWindow):
         """Удаление расписания для выбранного отчета PBIRS."""
         return self.ui_operations.delete_pbirs_schedule()
 
+    def execute_pbirs_schedule(self):
+        """Немедленный запуск выбранного расписания обновления кэша PBIRS."""
+        return self.ui_operations.execute_pbirs_schedule()
+
     def show_pbirs_refresh_plans_context_menu(self, position):
         """Показывает контекстное меню для таблицы расписаний PBIRS."""
         return self.ui_operations.show_pbirs_refresh_plans_context_menu(position)
@@ -803,11 +826,31 @@ class PowerBIMonitorUI(QMainWindow):
     def start_monitoring(self):
         """Запускает мониторинг в реальном времени."""
         return self.data_filtering_operations.start_monitoring()
-    
+
     def stop_monitoring(self):
         """Останавливает мониторинг в реальном времени."""
         return self.data_filtering_operations.stop_monitoring()
-    
+
+    def get_monitor_interval(self) -> int:
+        """Возвращает выбранный интервал мониторинга в миллисекундах."""
+        if hasattr(self, 'monitor_radio_15') and self.monitor_radio_15.isChecked():
+            return 15000
+        elif hasattr(self, 'monitor_radio_60') and self.monitor_radio_60.isChecked():
+            return 60000
+        else:
+            return 30000  # 30 сек по умолчанию
+
+    def _update_monitor_group_title(self):
+        """Обновляет заголовок группы мониторинга при смене периодичности."""
+        if hasattr(self, 'monitor_group'):
+            interval_sec = self.get_monitor_interval() // 1000
+            self.monitor_group.setTitle(f"Мониторинг (периодичность опроса {interval_sec} сек)")
+
+        # Если мониторинг активен — перезапускаем таймер с новым интервалом
+        if getattr(self, 'auto_refresh_enabled', False) and hasattr(self, 'update_timer'):
+            self.update_timer.setInterval(self.get_monitor_interval())
+            self.log_message(f"Интервал мониторинга изменён на {self.get_monitor_interval() // 1000} сек")
+
     def enable_auto_refresh(self):
         """Включает автоматическое обновление для выбранного датасета."""
         return self.refresh_operations.enable_auto_refresh()
