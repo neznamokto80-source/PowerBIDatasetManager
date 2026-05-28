@@ -346,12 +346,11 @@ class PowerBIMonitorUI(QMainWindow):
             report_type_display = report.get('ReportTypeDisplay', 'Unknown')
             table.setItem(row, 3, QTableWidgetItem(report_type_display))
             
-            # Колонка 4: Источники данных (кратко)
+            # Колонка 4: Источники данных (полный текст + tooltip)
             sources_brief = report.get('DataSourcesBrief', 'Нет источников')
             sources_item = QTableWidgetItem(sources_brief)
             table.setItem(row, 4, sources_item)
-            
-            # Добавляем tooltip с полными ConnectionString
+            # Tooltip с полными ConnectionString
             data_sources = report.get('DataSourcesList', [])
             if data_sources:
                 tooltip_lines = []
@@ -361,17 +360,19 @@ class PowerBIMonitorUI(QMainWindow):
                     conn_str = ds.get('ConnectionString', '')
                     if conn_str:
                         tooltip_lines.append(f"• {conn_str}")
-                
                 if tooltip_lines:
                     sources_item.setToolTip("Полные строки подключения:\n" + "\n".join(tooltip_lines))
             
-            # Колонка 5: Последний статус
+            # Колонка 5: Последний статус (полный текст + tooltip)
             last_status = report.get('LastStatus', 'Не запускался')
             last_run_time = report.get('LastRunTime')
             # Если есть планы обновления, но нет времени последнего запуска, показываем "Новое расписание обновления"
             if not last_run_time and report.get('RefreshPlansList'):
                 last_status = 'Новое расписание обновления'
-            table.setItem(row, 5, QTableWidgetItem(last_status))
+            
+            status_item = QTableWidgetItem(last_status)
+            status_item.setToolTip(f"{last_status}")
+            table.setItem(row, 5, status_item)
             
             # Колонка 6: Последнее обновление (полный формат)
             last_run_display = report.get('LastRunDisplayFull', report.get('LastRunDisplay', 'Никогда'))

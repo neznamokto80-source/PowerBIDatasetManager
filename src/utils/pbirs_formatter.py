@@ -50,16 +50,14 @@ def format_time_from_datetime(dt_str: Optional[str]) -> str:
 
 
 def format_datetime_full(dt_str: Optional[str]) -> str:
-    """27 мая 2026 г. 9:35:55"""
+    """28.05.2026г. в 01:01"""
     if not dt_str or not isinstance(dt_str, str):
         return ""
     try:
         if dt_str.endswith('Z'):
             dt_str = dt_str[:-1] + '+00:00'
         dt = datetime.fromisoformat(dt_str.replace('Z', '+00:00'))
-        months = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
-                  'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
-        return f"{dt.day} {months[dt.month-1]} {dt.year} г. {dt.hour}:{dt.minute:02d}:{dt.second:02d}"
+        return f"{dt.day:02d}.{dt.month:02d}.{dt.year} в {dt.hour:02d}:{dt.minute:02d}"
     except:
         return dt_str
 

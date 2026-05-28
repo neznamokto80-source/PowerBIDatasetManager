@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTreeWidgetItem,
-    QMenu, QFormLayout, QGroupBox, QTextEdit, QTableWidgetItem
+    QMenu, QFormLayout, QGroupBox, QTextEdit, QTableWidgetItem, QHeaderView
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QAction
@@ -775,23 +775,27 @@ class UIOperations:
 
             # 2. Расписание (читаемое описание)
             schedule_desc = plan.get('ScheduleDescription', 'Не задано')
-            table.setItem(row, 1, QTableWidgetItem(schedule_desc))
+            schedule_item = QTableWidgetItem(schedule_desc)
+            schedule_item.setToolTip(f"{schedule_desc}")            
+            table.setItem(row, 1, QTableWidgetItem(schedule_item))
 
             # 3. Последний запуск (из LastRunTime)
             last_run_raw = plan.get('LastRunTime')
             if last_run_raw:
                 try:
                     dt = dateutil.parser.parse(last_run_raw)
-                    last_run_str = dt.strftime("%d.%m.%Y в %H:%M:%S")
+                    last_run_str = dt.strftime("%d.%m.%Y в %H:%M")
                 except Exception:
                     last_run_str = last_run_raw
             else:
                 last_run_str = 'Никогда'
             table.setItem(row, 2, QTableWidgetItem(last_run_str))
 
-            # 4. Статус
+            # 4. Статус + tooltip с полным текстом
             last_status = plan.get('LastStatus', 'Не запускался')
-            table.setItem(row, 3, QTableWidgetItem(last_status))
+            status_item = QTableWidgetItem(last_status)
+            status_item.setToolTip(f"{last_status}")
+            table.setItem(row, 3, status_item)
 
             # 5. Следующий запуск (вычисляем из расписания)
             schedule_obj = plan.get('Schedule')
@@ -812,7 +816,7 @@ class UIOperations:
             # Сохраняем объект плана в userData первой ячейки
             table.item(row, 0).setData(Qt.ItemDataRole.UserRole, plan)
 
-        table.resizeColumnsToContents()
+        # Размеры колонок заданы в ui_panels.py при создании таблицы
         self.main_window.log_message(f"Загружено расписаний: {len(refresh_plans)}")
     
    
@@ -864,7 +868,7 @@ class UIOperations:
                 sources_text = "Нет источников"
             self.main_window.pbirs_detail_sources.setText(sources_text)
 
-        # Статус обновления
+        # Статус обновления (полный текст — в блоке информации об отчете показываем без обрезания)
         if hasattr(self.main_window, 'pbirs_detail_refresh_status'):
             last_status = report_data.get('LastStatus', 'Не запускался')
             self.main_window.pbirs_detail_refresh_status.setText(last_status)

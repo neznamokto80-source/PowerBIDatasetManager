@@ -122,6 +122,12 @@ def enrich_report_data(report: Dict[str, Any]) -> Dict[str, Any]:
     
     enriched['RefreshPlansDetails'] = enriched_plans
     enriched['LastStatus'] = last_status or "Не запускался"
+    # Краткое отображение статуса (обрезанный до ~50 символов) — по аналогии с DataSourcesBrief
+    last_status_full = enriched['LastStatus']
+    if last_status_full and len(last_status_full) > 50:
+        enriched['LastStatusBrief'] = last_status_full[:47] + '...'
+    else:
+        enriched['LastStatusBrief'] = last_status_full
     enriched['LastRunTime'] = last_run_time
     enriched['NextRunDisplay'] = next_run_display
     

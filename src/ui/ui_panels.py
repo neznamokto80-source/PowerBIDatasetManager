@@ -483,15 +483,15 @@ class UIPanels:
         ])
         # Настройка ширины колонок
         header = self.main.pbirs_reports_table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)  # Папка
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)  # Название
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)  # Размер
-        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)  # Тип
-        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)  # Источники данных - фиксированная ширина
-        header.resizeSection(4, 200)  # Устанавливаем ширину 200 пикселей
-        header.setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)  # Последний статус
-        header.setSectionResizeMode(6, QHeaderView.ResizeMode.ResizeToContents)  # Последнее обновление
-        header.setSectionResizeMode(7, QHeaderView.ResizeMode.ResizeToContents)  # Следующее обновление
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)  # Папка
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)  # Название отчета
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)    # Размер (МБ)
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)    # Тип отчета
+        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)  # Источники данных
+        header.setSectionResizeMode(5, QHeaderView.ResizeMode.Stretch)  # Последний статус
+        header.setSectionResizeMode(6, QHeaderView.ResizeMode.ResizeToContents)    # Последнее обновление
+        header.setSectionResizeMode(7, QHeaderView.ResizeMode.ResizeToContents)    # Следующее обновление
+        header.setStretchLastSection(False)
         
         self.main.pbirs_reports_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.main.pbirs_reports_table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
@@ -546,8 +546,8 @@ class UIPanels:
         ])
         # Настройка ширины колонок
         header = self.main.pbirs_sources_table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)  # Папка
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)  # Название отчета
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)  # Папка
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)  # Название отчета
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)  # ConnectionString
         
         self.main.pbirs_sources_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
@@ -633,6 +633,7 @@ class UIPanels:
         right_form.addRow("Источники данных:", self.main.pbirs_detail_sources)        
         #right_form.addRow("Источники данных:", self.main.pbirs_detail_sources)
         self.main.pbirs_detail_refresh_status = QLabel("-")
+        self.main.pbirs_detail_refresh_status.setWordWrap(True)  # Перенос текста для длинных статусов
         right_form.addRow("Статус обновления:", self.main.pbirs_detail_refresh_status)
         self.main.pbirs_detail_last_refresh = QLabel("-")
         right_form.addRow("Последнее обновление:", self.main.pbirs_detail_last_refresh)
@@ -647,6 +648,10 @@ class UIPanels:
         sep.setFrameShadow(QFrame.Shadow.Sunken)
         info_layout.addWidget(sep)
         info_layout.addLayout(right_form)
+        # Устанавливаем stretch-факторы для равномерного распределения колонок
+        info_layout.setStretch(0, 1)  # Левая колонка
+        info_layout.setStretch(1, 0)  # Разделитель (фиксированная ширина)
+        info_layout.setStretch(2, 1)  # Правая колонка
         info_group.setLayout(info_layout)
         layout.addWidget(info_group, 4)
 
@@ -660,11 +665,13 @@ class UIPanels:
             "Название", "Расписание", "Последний запуск", "Статус", "Следующий запуск"
         ])
         header = self.main.pbirs_refresh_plans_table.horizontalHeader()
+        # Колонки 0, 1, 3 — растягиваются; колонки 2, 4 — фиксированная ширина
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
+        header.setStretchLastSection(False)
         self.main.pbirs_refresh_plans_table.verticalHeader().setVisible(False)
         self.main.pbirs_refresh_plans_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.main.pbirs_refresh_plans_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
