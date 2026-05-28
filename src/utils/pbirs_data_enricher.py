@@ -62,6 +62,13 @@ def enrich_report_data(report: Dict[str, Any]) -> Dict[str, Any]:
             if ds is None:
                 continue
             conn_str = ds.get('ConnectionString', '')
+            # Извлекаем Username из вложенного объекта DataModelDataSource
+            data_model = ds.get('DataModelDataSource', {})
+            if isinstance(data_model, dict):
+                username = data_model.get('Username', '')
+            else:
+                username = ''
+            enriched['DataSourcesList'][enriched['DataSourcesList'].index(ds)]['Username'] = username
             if conn_str:
                 if ';' in conn_str:
                     conn_str = conn_str.split(';')[0]
@@ -264,6 +271,12 @@ def extract_data_sources_for_table(reports: List[Dict[str, Any]]) -> List[Dict[s
             created_date = ds.get('CreatedDate', '')
             modified_by = ds.get('ModifiedBy', '')
             modified_date = ds.get('ModifiedDate', '')
+            # Извлекаем Username из вложенного объекта DataModelDataSource
+            data_model = ds.get('DataModelDataSource', {})
+            if isinstance(data_model, dict):
+                username = data_model.get('Username', '')
+            else:
+                username = ''
             
             if connection_string and len(connection_string) > 150:
                 short_conn = connection_string[:147] + '...'
@@ -287,7 +300,8 @@ def extract_data_sources_for_table(reports: List[Dict[str, Any]]) -> List[Dict[s
                 'CreatedDateFormatted': created_date_formatted,
                 'ModifiedBy': modified_by,
                 'ModifiedDate': modified_date,
-                'ModifiedDateFormatted': modified_date_formatted
+                'ModifiedDateFormatted': modified_date_formatted,
+                'Username': username
             })
     return sources
 

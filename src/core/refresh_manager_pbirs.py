@@ -68,6 +68,7 @@ class PBIRSRefreshManager:
     def create_cache_refresh_plan(
         self,
         report_id: str,
+        report_path: str,
         plan_name: str,
         description: str = "",
         enabled: bool = True,
@@ -81,6 +82,7 @@ class PBIRSRefreshManager:
         
         Args:
             report_id: ID отчета
+            report_path: Путь к отчету на сервере (CatalogItemPath)
             plan_name: Название плана
             description: Описание плана
             enabled: Включен ли план
@@ -107,6 +109,7 @@ class PBIRSRefreshManager:
         
         # Формируем данные плана
         plan_data = {
+            "CatalogItemPath": report_path,
             "Description": description,
             "EventType": "TimedSubscription",
             "Schedule": {
@@ -144,7 +147,7 @@ class PBIRSRefreshManager:
             plan_data["Schedule"]["Definition"]["StartDateTime"] = \
                 f"{datetime.now().strftime('%Y-%m-%d')}T{times[0]}:00"
         
-        return self.client.create_cache_refresh_plan(report_id, plan_data)
+        return self.client.create_cache_refresh_plan(plan_data)
     
     def update_cache_refresh_plan(
         self,

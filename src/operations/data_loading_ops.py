@@ -97,11 +97,9 @@ class DataLoadingMethods(BaseOperations):
                         # Обновляем таблицу отчетов
                         self.main_window.update_pbirs_reports_table(self.main_window.pbirs_reports)
                         
-                        # Обновляем таблицу источников
-                        sources_data = self.main_window.pbirs_operations.get_report_data_sources_for_table(
-                            self.main_window.pbirs_reports[0].get('Id') if self.main_window.pbirs_reports else ''
-                        )
-                        self.main_window.update_pbirs_sources_table(sources_data)
+                        # Обновляем таблицу источников из уже загруженных данных
+                        if hasattr(self.main_window, 'pbirs_sources_data'):
+                            self.main_window.update_pbirs_sources_table(self.main_window.pbirs_sources_data)
                     
                     self.main_window.status_bar.showMessage("Данные PBIRS обновлены", 3000)
                     self.main_window.log_message("✓ Данные PBIRS обновлены")

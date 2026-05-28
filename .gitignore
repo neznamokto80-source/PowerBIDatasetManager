@@ -3,3 +3,4 @@ test_path.py
 задачи.md
 *.pyc
 *.exe
+debug\*

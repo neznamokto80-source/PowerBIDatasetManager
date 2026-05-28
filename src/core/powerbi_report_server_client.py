@@ -361,21 +361,21 @@ class PowerBIReportServerClient:
             logger.error(f"Ошибка при выполнении плана обновления кэша {plan_id}: {e}")
             raise
     
-    def create_cache_refresh_plan(self, report_id: str, plan_data: Dict[str, Any]) -> Dict[str, Any]:
+    def create_cache_refresh_plan(self, plan_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Создает новый план обновления кэша для отчета.
         
         Args:
-            report_id: ID отчета
-            plan_data: Данные плана обновления кэша
+            plan_data: Данные плана обновления кэша (должен содержать CatalogItemPath)
         
         Returns:
             Созданный план
         """
         try:
-            return self._make_request(f"PowerBIReports({report_id})/CacheRefreshPlans", method="POST", data=plan_data)
+            return self._make_request("CacheRefreshPlans", method="POST", data=plan_data)
         except Exception as e:
-            logger.error(f"Ошибка при создании плана обновления кэша для отчета {report_id}: {e}")
+            catalog_path = plan_data.get('CatalogItemPath', 'N/A')
+            logger.error(f"Ошибка при создании плана обновления кэша для {catalog_path}: {e}")
             raise
     
     def update_cache_refresh_plan(self, plan_id: str, plan_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -436,7 +436,7 @@ class PowerBIReportServerClient:
             Name, ConnectionString, DataSourceType, CredentialRetrieval, etc.
         """
         try:
-            data = self._make_request(f"reports('{report_id}')/DataSources")
+            data = self._make_request(f"PowerBIReports({report_id})/DataSources")
             return data.get('value', [])
         except Exception as e:
             logger.error(f"Ошибка при получении источников данных для отчета {report_id}: {e}")

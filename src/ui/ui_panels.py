@@ -530,25 +530,39 @@ class UIPanels:
         filter_layout.addWidget(source_filter_label)
         filter_layout.addWidget(self.main.pbirs_sources_source_filter)
         
-        # Настраиваем пропорциональное распределение ширины (50% на каждый фильтр)
+        # Фильтр по пользователю (Username)
+        user_filter_label = QLabel("Пользователь:")
+        self.main.pbirs_sources_user_filter = QComboBox()
+        self.main.pbirs_sources_user_filter.setEditable(True)
+        self.main.pbirs_sources_user_filter.setPlaceholderText("введите имя пользователя...")
+        # Подключаем фильтрацию по мере ввода
+        self.main.pbirs_sources_user_filter.currentIndexChanged.connect(self.main.on_pbirs_sources_filter_changed)
+        self.main.pbirs_sources_user_filter.editTextChanged.connect(self.main.on_pbirs_sources_filter_changed)
+        filter_layout.addWidget(user_filter_label)
+        filter_layout.addWidget(self.main.pbirs_sources_user_filter)
+        
+        # Настраиваем пропорциональное распределение ширины
         filter_layout.setStretch(0, 1)  # Метка "Название отчета"
-        filter_layout.setStretch(1, 3)  # Поле ввода названия отчета
+        filter_layout.setStretch(1, 2)  # Поле ввода названия отчета
         filter_layout.setStretch(2, 1)  # Метка "ConnectionString"
-        filter_layout.setStretch(3, 3)  # Комбобокс ConnectionString
+        filter_layout.setStretch(3, 2)  # Комбобокс ConnectionString
+        filter_layout.setStretch(4, 1)  # Метка "Пользователь"
+        filter_layout.setStretch(5, 2)  # Комбобокс Пользователь
         
         layout.addLayout(filter_layout)
         
         # Таблица источников данных
         self.main.pbirs_sources_table = QTableWidget()
-        self.main.pbirs_sources_table.setColumnCount(3)
+        self.main.pbirs_sources_table.setColumnCount(4)
         self.main.pbirs_sources_table.setHorizontalHeaderLabels([
-            "Папка", "Название отчета", "ConnectionString"
+            "Папка", "Название отчета", "ConnectionString", "Пользователь"
         ])
         # Настройка ширины колонок
         header = self.main.pbirs_sources_table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)  # Папка
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)  # Название отчета
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)  # ConnectionString
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)  # Пользователь
         
         self.main.pbirs_sources_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.main.pbirs_sources_table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
@@ -609,35 +623,46 @@ class UIPanels:
         # Левая колонка
         left_form = QFormLayout()
         self.main.pbirs_detail_name = QLabel("-")
+        self.main.pbirs_detail_name.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         left_form.addRow("Название:", self.main.pbirs_detail_name)
         self.main.pbirs_detail_id = QLabel("-")
+        self.main.pbirs_detail_id.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         left_form.addRow("PowerBIReport ID:", self.main.pbirs_detail_id)
         self.main.pbirs_detail_folder = QLabel("-")
+        self.main.pbirs_detail_folder.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         left_form.addRow("Папка:", self.main.pbirs_detail_folder)
         self.main.pbirs_detail_creator = QLabel("-")
+        self.main.pbirs_detail_creator.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         left_form.addRow("Создатель:", self.main.pbirs_detail_creator)
         # Новые поля
         self.main.pbirs_detail_created_date = QLabel("-")
+        self.main.pbirs_detail_created_date.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         left_form.addRow("Дата создания:", self.main.pbirs_detail_created_date)
         self.main.pbirs_detail_modified_by = QLabel("-")
+        self.main.pbirs_detail_modified_by.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         left_form.addRow("Кем изменён:", self.main.pbirs_detail_modified_by)
         self.main.pbirs_detail_modified_date = QLabel("-")
+        self.main.pbirs_detail_modified_date.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         left_form.addRow("Дата изменения:", self.main.pbirs_detail_modified_date)
         # Правая колонка
         right_form = QFormLayout()
         #self.main.pbirs_detail_sources = QLabel("-")
         #self.main.pbirs_detail_sources.setWordWrap(True)
         self.main.pbirs_detail_sources = QLabel("-")
+        self.main.pbirs_detail_sources.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         self.main.pbirs_detail_sources.setWordWrap(True)
         self.main.pbirs_detail_sources.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        right_form.addRow("Источники данных:", self.main.pbirs_detail_sources)        
+        right_form.addRow("Источники данных:", self.main.pbirs_detail_sources)
         #right_form.addRow("Источники данных:", self.main.pbirs_detail_sources)
         self.main.pbirs_detail_refresh_status = QLabel("-")
+        self.main.pbirs_detail_refresh_status.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         self.main.pbirs_detail_refresh_status.setWordWrap(True)  # Перенос текста для длинных статусов
         right_form.addRow("Статус обновления:", self.main.pbirs_detail_refresh_status)
         self.main.pbirs_detail_last_refresh = QLabel("-")
+        self.main.pbirs_detail_last_refresh.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         right_form.addRow("Последнее обновление:", self.main.pbirs_detail_last_refresh)
         self.main.pbirs_detail_next_refresh = QLabel("-")
+        self.main.pbirs_detail_next_refresh.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         right_form.addRow("Следующее обновление:", self.main.pbirs_detail_next_refresh)
         
 
@@ -675,22 +700,24 @@ class UIPanels:
         self.main.pbirs_refresh_plans_table.verticalHeader().setVisible(False)
         self.main.pbirs_refresh_plans_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.main.pbirs_refresh_plans_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        # Включаем контекстное меню
+        self.main.pbirs_refresh_plans_table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.main.pbirs_refresh_plans_table.customContextMenuRequested.connect(
+            self.main.show_pbirs_refresh_plans_context_menu
+        )
         
         plans_layout.addWidget(self.main.pbirs_refresh_plans_table)
         plans_group.setLayout(plans_layout)
         layout.addWidget(plans_group, 4)
 
-        # Кнопки сохранения/удаления
-        button_widget = QWidget()
-        buttons_layout = QHBoxLayout(button_widget)
-        self.main.pbirs_schedule_save_btn = QPushButton("Сохранить расписание")
-        self.main.pbirs_schedule_save_btn.clicked.connect(self.main.save_pbirs_schedule)
-        self.main.pbirs_schedule_delete_btn = QPushButton("Удалить расписание")
-        self.main.pbirs_schedule_delete_btn.clicked.connect(self.main.delete_pbirs_schedule)
-        buttons_layout.addStretch()
-        buttons_layout.addWidget(self.main.pbirs_schedule_save_btn)
-        buttons_layout.addWidget(self.main.pbirs_schedule_delete_btn)
-        layout.addWidget(button_widget, 1)
+        # Информационное сообщение о создании/удалении расписания
+        info_widget = QWidget()
+        info_layout = QHBoxLayout(info_widget)
+        info_label = QLabel("Для создания/удаления расписания используйте контекстное меню")
+        info_label.setStyleSheet("color: #888; font-style: italic;")
+        info_layout.addWidget(info_label)
+        info_layout.addStretch()
+        layout.addWidget(info_widget, 1)
 
         return tab
 

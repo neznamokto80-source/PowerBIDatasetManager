@@ -388,7 +388,7 @@ class PowerBIMonitorUI(QMainWindow):
         # Автоматически подгоняем ширину колонок
         #table.resizeColumnsToContents()
     
-    def update_pbirs_sources_table(self, sources_data, report_filter=None, source_filter=None):
+    def update_pbirs_sources_table(self, sources_data, report_filter=None, source_filter=None, user_filter=None):
         """
         Заполняет таблицу источников данных PBIRS.
         
@@ -397,6 +397,7 @@ class PowerBIMonitorUI(QMainWindow):
                 Каждый словарь должен содержать ключи: Folder, ReportName, DataSource, ConnectionString
             report_filter: Строка для фильтрации по названию отчета (None - без фильтра)
             source_filter: Строка для фильтрации по ConnectionString (None - без фильтра)
+            user_filter: Строка для фильтрации по пользователю (None - без фильтра)
         """
         if not hasattr(self, 'pbirs_sources_table'):
             return
@@ -413,6 +414,7 @@ class PowerBIMonitorUI(QMainWindow):
             folder = source_item.get('Folder', '')
             report_name = source_item.get('ReportName', '')
             connection_string = source_item.get('ConnectionString', '')
+            username = source_item.get('Username', '')
             
             # Проверяем фильтр по названию отчета
             report_match = True
@@ -426,7 +428,12 @@ class PowerBIMonitorUI(QMainWindow):
                 connection_string_lower = connection_string.lower()
                 source_match = filter_lower in connection_string_lower
             
-            if report_match and source_match:
+            # Проверяем фильтр по пользователю
+            user_match = True
+            if user_filter and user_filter.strip():
+                user_match = user_filter.lower() in username.lower()
+            
+            if report_match and source_match and user_match:
                 filtered_sources.append(source_item)
         
         # Устанавливаем количество строк
@@ -454,6 +461,10 @@ class PowerBIMonitorUI(QMainWindow):
                 display_string = connection_string
             table.setItem(row, 2, QTableWidgetItem(display_string))
             
+            # Колонка 3: Пользователь
+            username = source_item.get('Username', '')
+            table.setItem(row, 3, QTableWidgetItem(username))
+            
             # Создаем расширенный tooltip с дополнительной информацией
             tooltip_lines = []
             if connection_string:
@@ -464,6 +475,8 @@ class PowerBIMonitorUI(QMainWindow):
                 tooltip_lines.append(f"Создатель: {created_by}")
             if created_date:
                 tooltip_lines.append(f"Создан: {created_date}")
+            if username:
+                tooltip_lines.append(f"Пользователь: {username}")
             
             if tooltip_lines:
                 table.item(row, 2).setToolTip("\n".join(tooltip_lines))
@@ -694,6 +707,10 @@ class PowerBIMonitorUI(QMainWindow):
     def delete_pbirs_schedule(self):
         """Удаление расписания для выбранного отчета PBIRS."""
         return self.ui_operations.delete_pbirs_schedule()
+
+    def show_pbirs_refresh_plans_context_menu(self, position):
+        """Показывает контекстное меню для таблицы расписаний PBIRS."""
+        return self.ui_operations.show_pbirs_refresh_plans_context_menu(position)
     
     def show_report_details_dialog(self, report_data):
         """Открывает диалоговое окно с детальной информацией об отчете."""

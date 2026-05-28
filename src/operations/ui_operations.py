@@ -10,9 +10,10 @@ from datetime import datetime, timedelta
 
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTreeWidgetItem,
-    QMenu, QFormLayout, QGroupBox, QTextEdit, QTableWidgetItem, QHeaderView
+    QMenu, QFormLayout, QGroupBox, QTextEdit, QTableWidgetItem, QHeaderView,
+    QMessageBox
 )
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QAction
 
 from ..ui.dataset_details_dialog import DatasetDetailsDialog
@@ -275,13 +276,23 @@ class UIOperations:
                 if not source_filter or source_filter == "Все источники":
                     source_filter = None
         
+        # Получаем фильтр по пользователю
+        user_filter = None
+        if hasattr(self.main_window, 'pbirs_sources_user_filter'):
+            combo = self.main_window.pbirs_sources_user_filter
+            text = combo.currentText().strip()
+            if text and text != "Все пользователи":
+                user_filter = text
+        
         # Применяем фильтрацию к таблице источников
         if hasattr(self.main_window, 'pbirs_sources_data'):
             sources_data = self.main_window.pbirs_sources_data
             if hasattr(self.main_window, 'update_pbirs_sources_table'):
-                self.main_window.update_pbirs_sources_table(sources_data, report_filter, source_filter)
+                self.main_window.update_pbirs_sources_table(sources_data, report_filter, source_filter, user_filter)
                 self.main_window.log_message(
-                    f"Фильтр источников обновлен: отчет='{report_filter or 'нет'}', ConnectionString='{source_filter or 'нет'}'"
+                    f"Фильтр источников обновлен: отчет='{report_filter or 'нет'}', "
+                    f"ConnectionString='{source_filter or 'нет'}', "
+                    f"пользователь='{user_filter or 'нет'}'"
                 )
             else:
                 # Резервная логика фильтрации
@@ -290,6 +301,7 @@ class UIOperations:
                     folder = source_item.get('Folder', '')
                     report_name = source_item.get('ReportName', '')
                     connection_string = source_item.get('ConnectionString', '')
+                    username = source_item.get('Username', '')
                     
                     # Проверяем фильтр по названию отчета
                     report_match = True
@@ -303,12 +315,19 @@ class UIOperations:
                         connection_string_lower = connection_string.lower()
                         source_match = filter_lower in connection_string_lower
                     
-                    if report_match and source_match:
+                    # Проверяем фильтр по пользователю
+                    user_match = True
+                    if user_filter:
+                        user_match = user_filter.lower() in username.lower()
+                    
+                    if report_match and source_match and user_match:
                         filtered.append(source_item)
                 
                 self.main_window.log_message(
                     f"Отфильтровано источников: {len(filtered)} "
-                    f"(отчет: '{report_filter or 'нет'}', ConnectionString: '{source_filter or 'нет'}')"
+                    f"(отчет: '{report_filter or 'нет'}', "
+                    f"ConnectionString: '{source_filter or 'нет'}', "
+                    f"пользователь: '{user_filter or 'нет'}')"
                 )
 
     def on_pbirs_details_filter_changed(self):
@@ -943,9 +962,172 @@ class UIOperations:
         self.main_window.log_message("Удаление времени из расписания PBIRS (заглушка)")
     
     def save_pbirs_schedule(self):
-        """Сохранение расписания для выбранного отчета PBIRS."""
-        self.main_window.log_message("Сохранение расписания PBIRS (заглушка)")
-    
+        """Создание ежедневного расписания для выбранного отчета PBIRS."""
+        # Получаем данные выбранного отчёта из комбобокса
+        combo = self.main_window.pbirs_details_report_combo
+        index = combo.currentIndex()
+        
+        if index <= 0:
+            self.main_window.log_message("✗ Не выбран отчёт для создания расписания")
+            QMessageBox.warning(self.main_window, "Создание расписания", "Сначала выберите отчёт.")
+            return
+        
+        report_data = combo.itemData(index)
+        if not report_data:
+            self.main_window.log_message("✗ Данные отчёта не найдены")
+            return
+        
+        report_id = report_data.get('Id')
+        report_name = report_data.get('Name', 'Без имени')
+        report_path = report_data.get('Path', '')
+        
+        if not report_id:
+            self.main_window.log_message("✗ Не найден ID отчёта")
+            return
+        
+        if not report_path:
+            self.main_window.log_message("✗ Не найден путь к отчёту (Path)")
+            return
+        
+        # Диалог для ввода времени запуска
+        from PyQt6.QtWidgets import QInputDialog
+        
+        # Ввод часов
+        hour, ok = QInputDialog.getInt(
+            self.main_window,
+            "Создание расписания",
+            f"Введите час запуска (0-23) для отчёта '{report_name}':",
+            9, 0, 23, 1
+        )
+        if not ok:
+            self.main_window.log_message("Создание расписания отменено")
+            return
+        
+        # Ввод минут
+        minute, ok = QInputDialog.getInt(
+            self.main_window,
+            "Создание расписания",
+            "Введите минуты запуска (0-59):",
+            0, 0, 59, 1
+        )
+        if not ok:
+            self.main_window.log_message("Создание расписания отменено")
+            return
+        
+        # Формируем дату старта — завтра в указанное время
+        from datetime import datetime, timedelta
+        tomorrow = datetime.now() + timedelta(days=1)
+        start_datetime = tomorrow.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        start_datetime_str = start_datetime.strftime("%Y-%m-%dT%H:%M:%S")
+        
+        # Формируем тело запроса с CatalogItemPath
+        plan_data = {
+            "CatalogItemPath": report_path,
+            "EventType": "DataModelRefresh",
+            "Description": f"Ежедневное обновление в {hour:02d}:{minute:02d}",
+            "Schedule": {
+                "Definition": {
+                    "StartDateTime": start_datetime_str,
+                    "EndDateSpecified": False,
+                    "Recurrence": {
+                        "DailyRecurrence": {
+                            "DaysInterval": 1
+                        }
+                    }
+                }
+            }
+        }
+        
+        try:
+            client = self.main_window.client
+            if not client or not hasattr(client, 'create_cache_refresh_plan'):
+                self.main_window.log_message("✗ Клиент PBIRS не инициализирован")
+                return
+            
+            client.create_cache_refresh_plan(plan_data)
+            self.main_window.log_message(
+                f"✓ Расписание создано для '{report_name}': ежедневно в {hour:02d}:{minute:02d}"
+            )
+            
+            # Обновляем данные через 2.5 секунды
+            QTimer.singleShot(2500, self.main_window.load_pbirs_reports)
+            
+        except Exception as e:
+            self.main_window.log_message(f"✗ Ошибка при создании расписания: {e}")
+
     def delete_pbirs_schedule(self):
-        """Удаление расписания для выбранного отчета PBIRS."""
-        self.main_window.log_message("Удаление расписания PBIRS (заглушка)")
+        """Удаление выбранного расписания для отчета PBIRS через API."""
+        table = self.main_window.pbirs_refresh_plans_table
+        current_row = table.currentRow()
+        
+        if current_row < 0:
+            self.main_window.log_message("✗ Не выбрано расписание для удаления")
+            return
+        
+        # Получаем объект плана из userData первой ячейки
+        plan_item = table.item(current_row, 0)
+        if not plan_item:
+            self.main_window.log_message("✗ Не удалось получить данные расписания")
+            return
+        
+        plan = plan_item.data(Qt.ItemDataRole.UserRole)
+        if not plan:
+            self.main_window.log_message("✗ Не удалось получить данные расписания")
+            return
+        
+        plan_id = plan.get('Id') or plan.get('PlanId')
+        plan_name = plan.get('Description') or plan.get('Name', 'Без названия')
+        
+        if not plan_id:
+            self.main_window.log_message(f"✗ Не найден ID расписания для '{plan_name}'")
+            return
+        
+        # Подтверждение удаления
+        reply = QMessageBox.question(
+            self.main_window,
+            "Подтверждение удаления",
+            f"Вы точно хотите удалить расписание '{plan_name}'?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        
+        if reply != QMessageBox.StandardButton.Yes:
+            self.main_window.log_message("Удаление отменено")
+            return
+        
+        try:
+            client = self.main_window.client
+            if not client or not hasattr(client, 'delete_cache_refresh_plan'):
+                self.main_window.log_message("✗ Клиент PBIRS не инициализирован")
+                return
+            
+            client.delete_cache_refresh_plan(plan_id)
+            self.main_window.log_message(f"✓ Расписание '{plan_name}' успешно удалено")
+            
+            # Обновляем данные через 2.5 секунды после удаления (как при нажатии кнопки "Обновить")
+            QTimer.singleShot(2500, self.main_window.load_pbirs_reports)
+            
+        except Exception as e:
+            self.main_window.log_message(f"✗ Ошибка при удалении расписания: {e}")
+
+    def show_pbirs_refresh_plans_context_menu(self, position):
+        """Показывает контекстное меню для таблицы расписаний PBIRS."""
+        table = self.main_window.pbirs_refresh_plans_table
+        
+        menu = QMenu(self.main_window)
+        
+        # Создать расписание — доступно всегда
+        create_action = QAction("Создать расписание", self.main_window)
+        create_action.triggered.connect(self.main_window.save_pbirs_schedule)
+        menu.addAction(create_action)
+        
+        # Удалить расписание — только если есть выбранная строка с расписанием
+        current_row = table.currentRow()
+        has_selected_plan = current_row >= 0 and table.item(current_row, 0) is not None
+        
+        if has_selected_plan:
+            delete_action = QAction("Удалить расписание", self.main_window)
+            delete_action.triggered.connect(self.main_window.delete_pbirs_schedule)
+            menu.addAction(delete_action)
+        
+        menu.exec(table.viewport().mapToGlobal(position))

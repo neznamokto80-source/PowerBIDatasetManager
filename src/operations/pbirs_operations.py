@@ -197,12 +197,19 @@ class PBIRSOperations(BaseOperations):
                     ds_name = ds.get('Name', 'Без имени')
                     if not isinstance(ds_name, str):
                         ds_name = str(ds_name)
+                    # Извлекаем Username из вложенного объекта DataModelDataSource
+                    data_model = ds.get('DataModelDataSource', {})
+                    if isinstance(data_model, dict):
+                        username = data_model.get('Username', '')
+                    else:
+                        username = ''
                     source_item = {
                         'Folder': folder,
                         'ReportName': report_name,
                         'DataSource': ds_name,
                         'ConnectionString': ds.get('ConnectionString', ''),
-                        'DataSourceType': ds.get('DataSourceType', 'Unknown')
+                        'DataSourceType': ds.get('DataSourceType', 'Unknown'),
+                        'Username': username
                     }
                     sources_data.append(source_item)
             
@@ -254,6 +261,26 @@ class PBIRSOperations(BaseOperations):
                     # Сохраняем полный ConnectionString в userData
                     combo.setItemData(combo.count() - 1, conn_string, Qt.ItemDataRole.UserRole)
                 self.main_window.log_message(f"  Заполнен фильтр источников данных: {len(unique_connections)} уникальных значений")
+            
+            # Заполняем комбобокс фильтра пользователей уникальными значениями
+            if hasattr(self.main_window, 'pbirs_sources_user_filter'):
+                combo = self.main_window.pbirs_sources_user_filter
+                combo.clear()
+                combo.addItem("Все пользователи")
+                # Собираем уникальные Username
+                unique_users = set()
+                for source_item in sources_data:
+                    username = source_item.get('Username', '')
+                    if username:
+                        if not isinstance(username, str):
+                            try:
+                                username = str(username)
+                            except Exception:
+                                continue
+                        unique_users.add(username)
+                for username in sorted(unique_users):
+                    combo.addItem(username)
+                self.main_window.log_message(f"  Заполнен фильтр пользователей: {len(unique_users)} уникальных значений")
             
             # Обновляем таблицу детальной информации PBIRS
             if hasattr(self.main_window, 'update_pbirs_details_table'):
