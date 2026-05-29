@@ -89,17 +89,12 @@ class DataLoadingMethods(BaseOperations):
                         self.main_window.status_bar.showMessage("Не подключено к PBIRS", 3000)
                         return
                     
-                    # Загружаем отчеты PBIRS
+                    # Загружаем отчеты PBIRS (внутри load_pbirs_reports уже применяются фильтры)
                     self.main_window.load_pbirs_reports()
                     
-                    # Обновляем таблицы
-                    if hasattr(self.main_window, 'pbirs_reports') and self.main_window.pbirs_reports:
-                        # Обновляем таблицу отчетов
-                        self.main_window.update_pbirs_reports_table(self.main_window.pbirs_reports)
-                        
-                        # Обновляем таблицу источников из уже загруженных данных
-                        if hasattr(self.main_window, 'pbirs_sources_data'):
-                            self.main_window.update_pbirs_sources_table(self.main_window.pbirs_sources_data)
+                    # Обновляем таблицу источников из уже загруженных данных
+                    if hasattr(self.main_window, 'pbirs_sources_data'):
+                        self.main_window.update_pbirs_sources_table(self.main_window.pbirs_sources_data)
                     
                     self.main_window.status_bar.showMessage("Данные PBIRS обновлены", 3000)
                     self.main_window.log_message("✓ Данные PBIRS обновлены")

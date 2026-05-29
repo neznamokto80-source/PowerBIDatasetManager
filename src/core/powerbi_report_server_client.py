@@ -482,6 +482,157 @@ class PowerBIReportServerClient:
         if self.debug_data_path:
             os.makedirs(self.debug_data_path, exist_ok=True)
 
+    # ========== Методы управления отчётами ==========
+
+    def download_report_content(self, report_id: str, report_type: str = "PowerBIReports") -> bytes:
+        """
+        Скачивает содержимое отчёта (бинарный файл .pbix или .rdl).
+        
+        Args:
+            report_id: ID отчёта
+            report_type: Тип отчёта ("PowerBIReports" или "Reports")
+        
+        Returns:
+            Бинарное содержимое файла отчёта
+        
+        Raises:
+            APIRequestError: При ошибке запроса
+        """
+        endpoint = f"{report_type}({report_id})/Content/$value"
+        url = f"{self.base_url}/{endpoint}"
+        
+        headers = self.DEFAULT_HEADERS.copy()
+        headers["Accept"] = "*/*"
+        
+        logger.info(f"Скачивание содержимого отчёта {report_id} (тип: {report_type})")
+        
+        try:
+            response = self.session.request(
+                "GET", url, auth=self.auth, headers=headers, timeout=60
+            )
+        except requests.exceptions.RequestException as e:
+            raise APIRequestError(f"Ошибка сети при скачивании отчёта {report_id}: {e}", status_code=None) from e
+        
+        if response.status_code not in self.SUCCESS_STATUS_CODES:
+            raise APIRequestError(
+                f"Ошибка {response.status_code} при скачивании отчёта {report_id}: {response.text}",
+                status_code=response.status_code
+            )
+        
+        logger.info(f"Содержимое отчёта {report_id} скачано: {len(response.content)} байт")
+        return response.content
+
+    def delete_report(self, report_id: str, report_type: str = "PowerBIReports") -> None:
+        """
+        Удаляет отчёт с сервера.
+        
+        Args:
+            report_id: ID отчёта
+            report_type: Тип отчёта ("PowerBIReports" или "Reports")
+        
+        Raises:
+            APIRequestError: При ошибке запроса
+        """
+        endpoint = f"{report_type}({report_id})"
+        logger.info(f"Удаление отчёта {report_id} (тип: {report_type})")
+        self._make_request(endpoint, method="DELETE")
+        logger.info(f"Отчёт {report_id} успешно удалён")
+
+    def create_report(self, name: str, path: str) -> str:
+        """
+        Создаёт новый отчёт на сервере (без содержимого).
+        
+        Args:
+            name: Имя отчёта
+            path: Путь на сервере (например, "/Folder/ReportName")
+        
+        Returns:
+            ID созданного отчёта
+        
+        Raises:
+            APIRequestError: При ошибке запроса
+        """
+        data = {"Name": name, "Path": path}
+        logger.info(f"Создание отчёта: name='{name}', path='{path}'")
+        result = self._make_request("PowerBIReports", method="POST", data=data)
+        report_id = result.get("Id", "")
+        logger.info(f"Отчёт создан, ID: {report_id}")
+        return report_id
+
+    def upload_report_content(self, report_id: str, file_path: str) -> None:
+        """
+        Загружает содержимое .pbix-файла в существующий отчёт.
+        
+        Args:
+            report_id: ID отчёта
+            file_path: Путь к .pbix-файлу на локальной файловой системе
+        
+        Raises:
+            APIRequestError: При ошибке запроса
+            FileNotFoundError: Если файл не найден
+        """
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"Файл не найден: {file_path}")
+        
+        endpoint = f"PowerBIReports({report_id})/Model.Upload"
+        url = f"{self.base_url}/{endpoint}"
+        
+        headers = self.DEFAULT_HEADERS.copy()
+        headers["Accept"] = "application/json"
+        # Content-Type не указываем — requests установит multipart/form-data с границей автоматически
+        
+        logger.info(f"Загрузка содержимого отчёта {report_id} из файла {file_path}")
+        
+        try:
+            with open(file_path, 'rb') as f:
+                files = {'File': (os.path.basename(file_path), f, 'application/octet-stream')}
+                response = self.session.request(
+                    "POST", url, auth=self.auth, headers=headers, files=files, timeout=120
+                )
+        except requests.exceptions.RequestException as e:
+            raise APIRequestError(f"Ошибка сети при загрузке отчёта {report_id}: {e}", status_code=None) from e
+        
+        if response.status_code not in self.SUCCESS_STATUS_CODES:
+            raise APIRequestError(
+                f"Ошибка {response.status_code} при загрузке отчёта {report_id}: {response.text}",
+                status_code=response.status_code
+            )
+        
+        logger.info(f"Содержимое отчёта {report_id} успешно загружено")
+
+    def check_report_permissions(self, report_id: str) -> bool:
+        """
+        Проверяет права доступа к отчёту через Policies endpoint.
+        
+        Args:
+            report_id: ID отчёта
+        
+        Returns:
+            True если у пользователя есть права на управление (Content Manager),
+            False если прав недостаточно или API недоступен
+        """
+        try:
+            data = self._make_request(f"PowerBIReports({report_id})/Policies")
+            policies = data.get("value", [])
+            
+            # Проверяем, есть ли у текущего пользователя роль Content Manager
+            # В политиках перечислены все назначенные роли для пользователей/групп
+            for policy in policies:
+                roles = policy.get("Roles", [])
+                for role in roles:
+                    role_name = role.get("Name", "")
+                    if role_name == "Content Manager":
+                        logger.info(f"Пользователь имеет права Content Manager на отчёт {report_id}")
+                        return True
+            
+            logger.info(f"Пользователь не имеет прав Content Manager на отчёт {report_id}")
+            return False
+            
+        except Exception as e:
+            logger.warning(f"Не удалось проверить права для отчёта {report_id}: {e}")
+            # Если API недоступен — разрешаем действие (ошибка будет при выполнении)
+            return True
+
 
 # Исключения (совместимые с powerbi_client.py)
 class AuthenticationError(Exception):

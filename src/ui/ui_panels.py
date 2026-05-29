@@ -72,6 +72,7 @@ class UIPanels:
         # Группа "Фильтры"
         filter_layout = QVBoxLayout()
         
+        # === Фильтры для Power BI Service (облако) ===
         self.main.filter_enabled = create_check_box("Только с включенным обновлением")
         self.main.filter_enabled.stateChanged.connect(self.main.apply_filters)
         filter_layout.addWidget(self.main.filter_enabled)
@@ -93,8 +94,32 @@ class UIPanels:
         self.main.filter_in_progress.stateChanged.connect(self.main.apply_filters)
         filter_layout.addWidget(self.main.filter_in_progress)
         
+        # === Фильтры для PBIRS (сервер) ===
+        self.main.filter_pbirs_no_schedule = create_check_box("Без расписаний")
+        self.main.filter_pbirs_no_schedule.stateChanged.connect(self.main.apply_filters)
+        filter_layout.addWidget(self.main.filter_pbirs_no_schedule)
+        
+        self.main.filter_pbirs_no_auth = create_check_box("Без аутентификации")
+        self.main.filter_pbirs_no_auth.stateChanged.connect(self.main.apply_filters)
+        filter_layout.addWidget(self.main.filter_pbirs_no_auth)
+        
+        self.main.filter_pbirs_success = create_check_box("Успешно обновлённые")
+        self.main.filter_pbirs_success.stateChanged.connect(self.main.apply_filters)
+        filter_layout.addWidget(self.main.filter_pbirs_success)
+        
+        self.main.filter_pbirs_errors = create_check_box("С ошибками последнего обновления")
+        self.main.filter_pbirs_errors.stateChanged.connect(self.main.apply_filters)
+        filter_layout.addWidget(self.main.filter_pbirs_errors)
+        
+        self.main.filter_pbirs_in_progress = create_check_box("В процессе обновления")
+        self.main.filter_pbirs_in_progress.stateChanged.connect(self.main.apply_filters)
+        filter_layout.addWidget(self.main.filter_pbirs_in_progress)
+        
         filter_group = create_group_box("Фильтры", filter_layout)
         layout.addWidget(filter_group)
+        
+        # По умолчанию скрываем PBIRS-фильтры (показываются только в режиме server)
+        self._set_pbirs_filters_visible(False)
 
         # Группа "Мониторинг"
         monitor_layout = QVBoxLayout()
@@ -667,7 +692,7 @@ class UIPanels:
         left_form.addRow("PowerBIReport ID:", self.main.pbirs_detail_id)
         self.main.pbirs_detail_folder = QLabel("-")
         self.main.pbirs_detail_folder.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        left_form.addRow("Папка:", self.main.pbirs_detail_folder)
+        left_form.addRow("Расположение отчета:", self.main.pbirs_detail_folder)
         self.main.pbirs_detail_creator = QLabel("-")
         self.main.pbirs_detail_creator.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         left_form.addRow("Создатель:", self.main.pbirs_detail_creator)
@@ -778,3 +803,61 @@ class UIPanels:
         layout.addWidget(clear_btn)
         
         return panel
+    
+    def _set_pbirs_filters_visible(self, visible: bool):
+        """
+        Переключает видимость PBIRS-фильтров и Service-фильтров.
+        
+        Args:
+            visible: True - показать PBIRS-фильтры (режим server),
+                     False - показать Service-фильтры (режим service)
+        """
+        # Фильтры для Power BI Service
+        if hasattr(self.main, 'filter_enabled'):
+            self.main.filter_enabled.setVisible(not visible)
+        if hasattr(self.main, 'filter_recent'):
+            self.main.filter_recent.setVisible(not visible)
+        if hasattr(self.main, 'filter_errors'):
+            self.main.filter_errors.setVisible(not visible)
+        if hasattr(self.main, 'filter_except_not_use'):
+            self.main.filter_except_not_use.setVisible(not visible)
+        if hasattr(self.main, 'filter_in_progress'):
+            self.main.filter_in_progress.setVisible(not visible)
+        
+        # Фильтры для PBIRS
+        if hasattr(self.main, 'filter_pbirs_no_schedule'):
+            self.main.filter_pbirs_no_schedule.setVisible(visible)
+        if hasattr(self.main, 'filter_pbirs_no_auth'):
+            self.main.filter_pbirs_no_auth.setVisible(visible)
+        if hasattr(self.main, 'filter_pbirs_success'):
+            self.main.filter_pbirs_success.setVisible(visible)
+        if hasattr(self.main, 'filter_pbirs_errors'):
+            self.main.filter_pbirs_errors.setVisible(visible)
+        if hasattr(self.main, 'filter_pbirs_in_progress'):
+            self.main.filter_pbirs_in_progress.setVisible(visible)
+        
+        # Сбрасываем все чекбоксы при переключении
+        if visible:
+            # Сбрасываем Service-фильтры
+            if hasattr(self.main, 'filter_enabled'):
+                self.main.filter_enabled.setChecked(False)
+            if hasattr(self.main, 'filter_recent'):
+                self.main.filter_recent.setChecked(False)
+            if hasattr(self.main, 'filter_errors'):
+                self.main.filter_errors.setChecked(False)
+            if hasattr(self.main, 'filter_except_not_use'):
+                self.main.filter_except_not_use.setChecked(False)
+            if hasattr(self.main, 'filter_in_progress'):
+                self.main.filter_in_progress.setChecked(False)
+        else:
+            # Сбрасываем PBIRS-фильтры
+            if hasattr(self.main, 'filter_pbirs_no_schedule'):
+                self.main.filter_pbirs_no_schedule.setChecked(False)
+            if hasattr(self.main, 'filter_pbirs_no_auth'):
+                self.main.filter_pbirs_no_auth.setChecked(False)
+            if hasattr(self.main, 'filter_pbirs_success'):
+                self.main.filter_pbirs_success.setChecked(False)
+            if hasattr(self.main, 'filter_pbirs_errors'):
+                self.main.filter_pbirs_errors.setChecked(False)
+            if hasattr(self.main, 'filter_pbirs_in_progress'):
+                self.main.filter_pbirs_in_progress.setChecked(False)

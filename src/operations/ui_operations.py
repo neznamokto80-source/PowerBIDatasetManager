@@ -78,12 +78,25 @@ class UIOperations:
         if hasattr(self.main_window, 'edit_schedule_btn'):
             self.main_window.edit_schedule_btn.setEnabled(False)
         
-        # Отключаем фильтры
+        # Отключаем фильтры (все, включая PBIRS)
         self.main_window.filter_enabled.setEnabled(False)
         self.main_window.filter_recent.setEnabled(False)
         self.main_window.filter_errors.setEnabled(False)
         self.main_window.filter_except_not_use.setEnabled(False)
         self.main_window.filter_in_progress.setEnabled(False)
+        if hasattr(self.main_window, 'filter_pbirs_no_schedule'):
+            self.main_window.filter_pbirs_no_schedule.setEnabled(False)
+        if hasattr(self.main_window, 'filter_pbirs_no_auth'):
+            self.main_window.filter_pbirs_no_auth.setEnabled(False)
+        if hasattr(self.main_window, 'filter_pbirs_success'):
+            self.main_window.filter_pbirs_success.setEnabled(False)
+        if hasattr(self.main_window, 'filter_pbirs_errors'):
+            self.main_window.filter_pbirs_errors.setEnabled(False)
+        if hasattr(self.main_window, 'filter_pbirs_in_progress'):
+            self.main_window.filter_pbirs_in_progress.setEnabled(False)
+        
+        # Переключаем видимость фильтров в зависимости от режима
+        self.main_window.set_pbirs_filters_visible(self.main_window.current_mode == 'server')
         
         # Отключаем мониторинг
         self.main_window.start_monitor_btn.setEnabled(False)
@@ -116,12 +129,29 @@ class UIOperations:
             else:
                 self.main_window.workspace_combo.addItem("Нет рабочих областей")
         
-        # Включаем фильтры
-        self.main_window.filter_enabled.setEnabled(True)
-        self.main_window.filter_recent.setEnabled(True)
-        self.main_window.filter_errors.setEnabled(True)
-        self.main_window.filter_except_not_use.setEnabled(True)
-        self.main_window.filter_in_progress.setEnabled(True)
+        # Переключаем видимость фильтров в зависимости от режима
+        self.main_window.set_pbirs_filters_visible(self.main_window.current_mode == 'server')
+        
+        # Включаем фильтры в зависимости от режима
+        if self.main_window.current_mode == 'server':
+            # В режиме PBIRS включаем только PBIRS-фильтры
+            if hasattr(self.main_window, 'filter_pbirs_no_schedule'):
+                self.main_window.filter_pbirs_no_schedule.setEnabled(True)
+            if hasattr(self.main_window, 'filter_pbirs_no_auth'):
+                self.main_window.filter_pbirs_no_auth.setEnabled(True)
+            if hasattr(self.main_window, 'filter_pbirs_success'):
+                self.main_window.filter_pbirs_success.setEnabled(True)
+            if hasattr(self.main_window, 'filter_pbirs_errors'):
+                self.main_window.filter_pbirs_errors.setEnabled(True)
+            if hasattr(self.main_window, 'filter_pbirs_in_progress'):
+                self.main_window.filter_pbirs_in_progress.setEnabled(True)
+        else:
+            # В режиме Service включаем Service-фильтры
+            self.main_window.filter_enabled.setEnabled(True)
+            self.main_window.filter_recent.setEnabled(True)
+            self.main_window.filter_errors.setEnabled(True)
+            self.main_window.filter_except_not_use.setEnabled(True)
+            self.main_window.filter_in_progress.setEnabled(True)
         
         # Включаем кнопки управления (позже, когда выбран датасет)
         self.main_window.enable_btn.setEnabled(False)
@@ -845,6 +875,7 @@ class UIOperations:
             else:
                 modified_date_fmt = '-'
             self.main_window.pbirs_detail_modified_date.setText(modified_date_fmt)
+
     
     def _set_pbirs_buttons_enabled(self, enabled):
         """Включает или отключает кнопки управления на вкладке Детали PBIRS."""
@@ -1204,4 +1235,36 @@ class UIOperations:
             delete_action.triggered.connect(self.main_window.delete_pbirs_schedule)
             menu.addAction(delete_action)
 
+        menu.exec(table.viewport().mapToGlobal(position))
+
+    def show_pbirs_reports_context_menu(self, position):
+        """Показывает контекстное меню для таблицы отчётов PBIRS."""
+        table = self.main_window.pbirs_reports_table
+        current_row = table.currentRow()
+        
+        menu = QMenu(self.main_window)
+        
+        # Определяем, выбран ли отчёт
+        has_selected_report = current_row >= 0 and table.item(current_row, 0) is not None
+        
+        # Пункт "Скачать отчет"
+        download_action = QAction("Скачать отчет", self.main_window)
+        download_action.triggered.connect(self.main_window.download_pbirs_report)
+        download_action.setEnabled(has_selected_report)
+        menu.addAction(download_action)
+        
+        # Пункт "Удалить отчет"
+        delete_action = QAction("Удалить отчет", self.main_window)
+        delete_action.triggered.connect(self.main_window.delete_pbirs_report)
+        delete_action.setEnabled(has_selected_report)
+        menu.addAction(delete_action)
+        
+        # Разделитель
+        menu.addSeparator()
+        
+        # Пункт "Загрузить отчет на сервер" — доступен всегда (не требует выбранного отчёта)
+        upload_action = QAction("Загрузить отчет на сервер", self.main_window)
+        upload_action.triggered.connect(self.main_window.upload_pbirs_report)
+        menu.addAction(upload_action)
+        
         menu.exec(table.viewport().mapToGlobal(position))

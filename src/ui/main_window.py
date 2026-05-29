@@ -599,6 +599,16 @@ class PowerBIMonitorUI(QMainWindow):
             self.tab_widget.setTabVisible(3, False)
             self.tab_widget.setTabVisible(4, False)
     
+    def set_pbirs_filters_visible(self, visible: bool):
+        """Переключает видимость PBIRS-фильтров в левой панели.
+        
+        Args:
+            visible: True — показать PBIRS-фильтры (режим server),
+                     False — показать Service-фильтры (режим service)
+        """
+        if hasattr(self, 'ui_components') and hasattr(self.ui_components, 'panels'):
+            self.ui_components.panels._set_pbirs_filters_visible(visible)
+    
     def refresh_data(self):
         """Обновление данных."""
         return self.data_loading_methods.refresh_data()

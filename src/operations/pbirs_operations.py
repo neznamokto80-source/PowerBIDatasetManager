@@ -6,10 +6,11 @@
 """
 
 import logging
+import os
 import traceback
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
-from PyQt6.QtWidgets import QMessageBox
+from PyQt6.QtWidgets import QMessageBox, QFileDialog, QInputDialog
 from PyQt6.QtCore import Qt
 
 from src.core.powerbi_report_server_client import PowerBIReportServerClient
@@ -172,18 +173,22 @@ class PBIRSOperations(BaseOperations):
             if len(enriched_reports) > 5:
                 self.main_window.log_message(f"  ... и еще {len(enriched_reports) - 5} отчетов")
             
-            # Обновляем таблицу отчётов в UI с учетом текущего выбора папки и фильтра по названию
-            if hasattr(self.main_window, 'update_pbirs_reports_table'):
-                # Определяем текущую выбранную папку (если комбобокс существует)
-                selected_folder = None
-                if hasattr(self.main_window, 'workspace_combo') and self.main_window.workspace_combo.count() > 0:
-                    selected_folder = self.main_window.workspace_combo.currentText()
-                # Определяем текущий фильтр по названию (если поле существует)
-                name_filter = None
-                if hasattr(self.main_window, 'pbirs_report_name_filter'):
-                    name_filter = self.main_window.pbirs_report_name_filter.text()
-                self.main_window.update_pbirs_reports_table(enriched_reports, selected_folder, name_filter)
-                self.main_window.log_message("✓ Таблица отчётов PBIRS обновлена")
+            # Применяем фильтры к загруженным отчётам (если есть активные PBIRS-фильтры)
+            if hasattr(self.main_window, 'apply_filters'):
+                self.main_window.apply_filters()
+            else:
+                # Резервный вариант: обновляем таблицу напрямую
+                if hasattr(self.main_window, 'update_pbirs_reports_table'):
+                    # Определяем текущую выбранную папку (если комбобокс существует)
+                    selected_folder = None
+                    if hasattr(self.main_window, 'workspace_combo') and self.main_window.workspace_combo.count() > 0:
+                        selected_folder = self.main_window.workspace_combo.currentText()
+                    # Определяем текущий фильтр по названию (если поле существует)
+                    name_filter = None
+                    if hasattr(self.main_window, 'pbirs_report_name_filter'):
+                        name_filter = self.main_window.pbirs_report_name_filter.text()
+                    self.main_window.update_pbirs_reports_table(enriched_reports, selected_folder, name_filter)
+            self.main_window.log_message("✓ Таблица отчётов PBIRS обновлена")
             
             # Формируем данные для вкладки источников
             sources_data = []
@@ -214,6 +219,7 @@ class PBIRSOperations(BaseOperations):
                     source_item = {
                         'Folder': folder,
                         'ReportName': report_name,
+                        'ReportId': report.get('Id', ''),
                         'DataSource': ds_name,
                         'ConnectionString': ds.get('ConnectionString', ''),
                         'DataSourceType': ds.get('DataSourceType', 'Unknown'),
@@ -429,9 +435,12 @@ class PBIRSOperations(BaseOperations):
         
         for report in reports:
             name = report.get('Name', 'Без имени')
+            path = report.get('Path', '')
             report_id = report.get('Id', '')
-            # Добавляем в комбобокс
-            combo.addItem(name, report)
+            # Отображаем полный путь отчета (Path), чтобы различать отчеты
+            # с одинаковым именем в разных папках
+            display_text = path if path else name
+            combo.addItem(display_text, report)
         
         # Восстанавливаем предыдущий выбор, если возможно
         index = combo.findText(current_text)
@@ -441,6 +450,149 @@ class PBIRSOperations(BaseOperations):
             combo.setCurrentIndex(0)
         
         self.main_window.log_message(f"✓ Комбобокс отчетов PBIRS обновлен: {len(reports)} отчетов")
+
+    # ========== Методы управления отчётами (загрузка/удаление/скачивание) ==========
+
+    def download_pbirs_report(self, report_id: str, report_name: str, report_type: str = "PowerBIReports"):
+        """
+        Скачивает отчёт с сервера и сохраняет в файл.
+        
+        Args:
+            report_id: ID отчёта
+            report_name: Имя отчёта (для предложения имени файла)
+            report_type: Тип отчёта ("PowerBIReports" или "Reports")
+        """
+        client = self.main_window.client
+        if not client or not hasattr(client, 'download_report_content'):
+            self.main_window.log_message("✗ Клиент PBIRS не инициализирован")
+            return
+        
+        # Определяем расширение файла
+        extension = ".pbix" if report_type == "PowerBIReports" else ".rdl"
+        default_name = f"{report_name}{extension}"
+        
+        # Диалог сохранения файла
+        file_path, _ = QFileDialog.getSaveFileName(
+            self.main_window,
+            f"Скачать отчёт {report_name}",
+            default_name,
+            f"Файлы отчётов (*{extension});;Все файлы (*)"
+        )
+        
+        if not file_path:
+            return  # Пользователь отменил
+        
+        try:
+            content = client.download_report_content(report_id, report_type)
+            with open(file_path, 'wb') as f:
+                f.write(content)
+            self.main_window.log_message(f"✓ Отчёт '{report_name}' скачан: {file_path} ({len(content)} байт)")
+        except Exception as e:
+            self.main_window.log_message(f"✗ Ошибка при скачивании отчёта '{report_name}': {e}")
+
+    def delete_pbirs_report(self, report_id: str, report_name: str, report_type: str = "PowerBIReports"):
+        """
+        Удаляет отчёт с сервера после подтверждения пользователя.
+        
+        Args:
+            report_id: ID отчёта
+            report_name: Имя отчёта (для отображения в диалоге)
+            report_type: Тип отчёта ("PowerBIReports" или "Reports")
+        """
+        client = self.main_window.client
+        if not client or not hasattr(client, 'delete_report'):
+            self.main_window.log_message("✗ Клиент PBIRS не инициализирован")
+            return
+        
+        # Диалог подтверждения
+        reply = QMessageBox.question(
+            self.main_window,
+            "Подтверждение удаления",
+            f"Вы уверены, что хотите удалить отчёт '{report_name}'?\n\n"
+            f"Это действие нельзя отменить.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        
+        try:
+            client.delete_report(report_id, report_type)
+            self.main_window.log_message(f"✓ Отчёт '{report_name}' удалён")
+            # Перезагружаем список отчётов
+            self.load_pbirs_reports()
+        except Exception as e:
+            self.main_window.log_message(f"✗ Ошибка при удалении отчёта '{report_name}': {e}")
+
+    def upload_pbirs_report(self):
+        """Загружает новый .pbix-отчёт на сервер."""
+        client = self.main_window.client
+        if not client or not hasattr(client, 'create_report') or not hasattr(client, 'upload_report_content'):
+            self.main_window.log_message("✗ Клиент PBIRS не инициализирован")
+            return
+        
+        # Диалог выбора .pbix файла
+        file_path, _ = QFileDialog.getOpenFileName(
+            self.main_window,
+            "Выберите .pbix файл для загрузки",
+            "",
+            "Power BI файлы (*.pbix);;Все файлы (*)"
+        )
+        
+        if not file_path:
+            return  # Пользователь отменил
+        
+        file_name = os.path.basename(file_path)
+        report_name = os.path.splitext(file_name)[0]
+        
+        # Запрашиваем путь на сервере
+        path, ok = QInputDialog.getText(
+            self.main_window,
+            "Путь на сервере",
+            f"Введите путь для размещения отчёта (например, /Моя_папка/{report_name}):",
+            text=f"/{report_name}"
+        )
+        
+        if not ok or not path.strip():
+            return
+        
+        try:
+            # Этап 1: Создаём отчёт на сервере
+            self.main_window.log_message(f"Создание отчёта '{report_name}' по пути '{path}'...")
+            report_id = client.create_report(report_name, path.strip())
+            
+            # Этап 2: Загружаем содержимое .pbix
+            self.main_window.log_message(f"Загрузка содержимого отчёта из файла {file_name}...")
+            client.upload_report_content(report_id, file_path)
+            
+            self.main_window.log_message(f"✓ Отчёт '{report_name}' успешно загружен на сервер (ID: {report_id})")
+            
+            # Перезагружаем список отчётов
+            self.load_pbirs_reports()
+            
+        except Exception as e:
+            self.main_window.log_message(f"✗ Ошибка при загрузке отчёта '{report_name}': {e}")
+
+    def check_pbirs_report_permissions(self, report_id: str) -> bool:
+        """
+        Проверяет права доступа к отчёту.
+        
+        Args:
+            report_id: ID отчёта
+        
+        Returns:
+            True если есть права на управление, False если нет
+        """
+        client = self.main_window.client
+        if not client or not hasattr(client, 'check_report_permissions'):
+            return False
+        
+        try:
+            return client.check_report_permissions(report_id)
+        except Exception as e:
+            self.main_window.log_message(f"⚠ Не удалось проверить права для отчёта: {e}")
+            return False
 
 
 if __name__ == "__main__":
