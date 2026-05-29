@@ -74,45 +74,45 @@ class UIPanels:
         
         # === Фильтры для Power BI Service (облако) ===
         self.main.filter_enabled = create_check_box("Только с включенным обновлением")
-        self.main.filter_enabled.stateChanged.connect(self.main.apply_filters)
+        self.main.filter_enabled.clicked.connect(self.main.apply_filters)
         filter_layout.addWidget(self.main.filter_enabled)
         
         self.main.filter_recent = create_check_box("Только с выключенным обновлением")
-        self.main.filter_recent.stateChanged.connect(self.main.apply_filters)
+        self.main.filter_recent.clicked.connect(self.main.apply_filters)
         filter_layout.addWidget(self.main.filter_recent)
         
         # Новые фильтры
         self.main.filter_errors = create_check_box("С ошибками при обновлении")
-        self.main.filter_errors.stateChanged.connect(self.main.apply_filters)
+        self.main.filter_errors.clicked.connect(self.main.apply_filters)
         filter_layout.addWidget(self.main.filter_errors)
         
         self.main.filter_except_not_use = create_check_box("Все кроме not_use")
-        self.main.filter_except_not_use.stateChanged.connect(self.main.apply_filters)
+        self.main.filter_except_not_use.clicked.connect(self.main.apply_filters)
         filter_layout.addWidget(self.main.filter_except_not_use)
         
         self.main.filter_in_progress = create_check_box("В процессе обновления")
-        self.main.filter_in_progress.stateChanged.connect(self.main.apply_filters)
+        self.main.filter_in_progress.clicked.connect(self.main.apply_filters)
         filter_layout.addWidget(self.main.filter_in_progress)
         
         # === Фильтры для PBIRS (сервер) ===
         self.main.filter_pbirs_no_schedule = create_check_box("Без расписаний")
-        self.main.filter_pbirs_no_schedule.stateChanged.connect(self.main.apply_filters)
+        self.main.filter_pbirs_no_schedule.clicked.connect(self.main.apply_filters)
         filter_layout.addWidget(self.main.filter_pbirs_no_schedule)
         
         self.main.filter_pbirs_no_auth = create_check_box("Без аутентификации")
-        self.main.filter_pbirs_no_auth.stateChanged.connect(self.main.apply_filters)
+        self.main.filter_pbirs_no_auth.clicked.connect(self.main.apply_filters)
         filter_layout.addWidget(self.main.filter_pbirs_no_auth)
         
         self.main.filter_pbirs_success = create_check_box("Успешно обновлённые")
-        self.main.filter_pbirs_success.stateChanged.connect(self.main.apply_filters)
+        self.main.filter_pbirs_success.clicked.connect(self.main.apply_filters)
         filter_layout.addWidget(self.main.filter_pbirs_success)
         
         self.main.filter_pbirs_errors = create_check_box("С ошибками последнего обновления")
-        self.main.filter_pbirs_errors.stateChanged.connect(self.main.apply_filters)
+        self.main.filter_pbirs_errors.clicked.connect(self.main.apply_filters)
         filter_layout.addWidget(self.main.filter_pbirs_errors)
         
         self.main.filter_pbirs_in_progress = create_check_box("В процессе обновления")
-        self.main.filter_pbirs_in_progress.stateChanged.connect(self.main.apply_filters)
+        self.main.filter_pbirs_in_progress.clicked.connect(self.main.apply_filters)
         filter_layout.addWidget(self.main.filter_pbirs_in_progress)
         
         filter_group = create_group_box("Фильтры", filter_layout)
