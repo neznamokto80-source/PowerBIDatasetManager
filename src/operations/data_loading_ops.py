@@ -92,9 +92,9 @@ class DataLoadingMethods(BaseOperations):
                     # Загружаем отчеты PBIRS (внутри load_pbirs_reports уже применяются фильтры)
                     self.main_window.load_pbirs_reports()
                     
-                    # Обновляем таблицу источников из уже загруженных данных
-                    if hasattr(self.main_window, 'pbirs_sources_data'):
-                        self.main_window.update_pbirs_sources_table(self.main_window.pbirs_sources_data)
+                    # Применяем все фильтры (папка + чекбоксы) ко всем PBIRS-вкладкам
+                    if hasattr(self.main_window, 'apply_filters'):
+                        self.main_window.apply_filters()
                     
                     self.main_window.status_bar.showMessage("Данные PBIRS обновлены", 3000)
                     self.main_window.log_message("✓ Данные PBIRS обновлены")

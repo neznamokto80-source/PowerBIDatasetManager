@@ -173,24 +173,7 @@ class PBIRSOperations(BaseOperations):
             if len(enriched_reports) > 5:
                 self.main_window.log_message(f"  ... и еще {len(enriched_reports) - 5} отчетов")
             
-            # Применяем фильтры к загруженным отчётам (если есть активные PBIRS-фильтры)
-            if hasattr(self.main_window, 'apply_filters'):
-                self.main_window.apply_filters()
-            else:
-                # Резервный вариант: обновляем таблицу напрямую
-                if hasattr(self.main_window, 'update_pbirs_reports_table'):
-                    # Определяем текущую выбранную папку (если комбобокс существует)
-                    selected_folder = None
-                    if hasattr(self.main_window, 'workspace_combo') and self.main_window.workspace_combo.count() > 0:
-                        selected_folder = self.main_window.workspace_combo.currentText()
-                    # Определяем текущий фильтр по названию (если поле существует)
-                    name_filter = None
-                    if hasattr(self.main_window, 'pbirs_report_name_filter'):
-                        name_filter = self.main_window.pbirs_report_name_filter.text()
-                    self.main_window.update_pbirs_reports_table(enriched_reports, selected_folder, name_filter)
-            self.main_window.log_message("✓ Таблица отчётов PBIRS обновлена")
-            
-            # Формируем данные для вкладки источников
+            # Формируем данные для вкладки источников (ДО применения фильтров)
             sources_data = []
             for report in enriched_reports:
                 folder = report.get('FolderDisplay', '/')
@@ -235,28 +218,21 @@ class PBIRSOperations(BaseOperations):
             # Сохраняем данные источников для использования в UI
             self.main_window.pbirs_sources_data = sources_data
             
-            # Обновляем таблицу источников в UI
-            if hasattr(self.main_window, 'update_pbirs_sources_table'):
-                # Определяем текущие фильтры (если поля существуют)
-                report_filter = None
-                source_filter = None
-                kind_filter = None
-                if hasattr(self.main_window, 'pbirs_sources_report_filter'):
-                    report_filter = self.main_window.pbirs_sources_report_filter.text()
-                if hasattr(self.main_window, 'pbirs_sources_source_filter'):
-                    index = self.main_window.pbirs_sources_source_filter.currentIndex()
-                    if index >= 0:
-                        source_filter = self.main_window.pbirs_sources_source_filter.currentText()
-                        if source_filter == "Все источники":
-                            source_filter = None
-                if hasattr(self.main_window, 'pbirs_sources_kind_filter'):
-                    combo = self.main_window.pbirs_sources_kind_filter
-                    kind_filter = combo.currentText().strip()
-                    if not kind_filter or kind_filter == "Все типы":
-                        kind_filter = None
-                
-                self.main_window.update_pbirs_sources_table(sources_data, report_filter, source_filter, kind_filter)
-                self.main_window.log_message(f"✓ Таблица источников PBIRS обновлена (записей: {len(sources_data)})")
+            # Применяем фильтры (папка + чекбоксы) ко всем PBIRS-вкладкам
+            if hasattr(self.main_window, 'apply_filters'):
+                self.main_window.apply_filters()
+            else:
+                # Резервный вариант: обновляем таблицу отчётов напрямую
+                if hasattr(self.main_window, 'update_pbirs_reports_table'):
+                    selected_folder = None
+                    if hasattr(self.main_window, 'workspace_combo') and self.main_window.workspace_combo.count() > 0:
+                        selected_folder = self.main_window.workspace_combo.currentText()
+                    name_filter = None
+                    if hasattr(self.main_window, 'pbirs_report_name_filter'):
+                        name_filter = self.main_window.pbirs_report_name_filter.text()
+                    self.main_window.update_pbirs_reports_table(enriched_reports, selected_folder, name_filter)
+            
+            self.main_window.log_message("✓ Таблицы PBIRS обновлены с применением фильтров")
             
             # Заполняем комбобокс фильтра источников данных уникальными значениями
             if hasattr(self.main_window, 'pbirs_sources_source_filter'):

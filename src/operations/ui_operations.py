@@ -184,41 +184,11 @@ class UIOperations:
             folder_path = self.main_window.workspace_combo.itemText(index)
             self.main_window.log_message(f"Выбрана папка: {folder_path}")
             
-            # Получаем фильтр по названию отчета
-            name_filter = None
-            if hasattr(self.main_window, 'pbirs_report_name_filter'):
-                name_filter = self.main_window.pbirs_report_name_filter.text().strip()
-                if name_filter:
-                    self.main_window.log_message(f"Фильтр по названию: '{name_filter}'")
-            
-            # Фильтруем отчеты по папке и названию
-            if hasattr(self.main_window, 'pbirs_reports'):
-                reports = self.main_window.pbirs_reports
-                # Обновляем таблицу с фильтрацией
-                if hasattr(self.main_window, 'update_pbirs_reports_table'):
-                    self.main_window.update_pbirs_reports_table(reports, folder_path, name_filter)
-                    self.main_window.log_message(f"Таблица отфильтрована по папке: {folder_path}, фильтр названия: {name_filter or 'нет'}")
-                else:
-                    # Резервная логика фильтрации
-                    filtered = []
-                    for report in reports:
-                        path = report.get('Path', '')
-                        name = report.get('Name', '')
-                        # Проверяем фильтр по папке
-                        folder_match = (folder_path == "Все папки" or folder_path == '/' or
-                                       path.startswith(folder_path + '/') or path == folder_path)
-                        # Проверяем фильтр по названию
-                        name_match = True
-                        if name_filter:
-                            name_match = name_filter.lower() in name.lower()
-                        
-                        if folder_match and name_match:
-                            filtered.append(report)
-                    self.main_window.log_message(f"Найдено отчетов в папке: {len(filtered)}")
-                    for i, report in enumerate(filtered[:5]):
-                        self.main_window.log_message(f"  {i+1}. {report.get('Name', 'Без имени')}")
+            # Применяем все фильтры (папка + чекбоксы) ко всем PBIRS-вкладкам
+            if hasattr(self.main_window, 'apply_filters'):
+                self.main_window.apply_filters()
             else:
-                self.main_window.log_message("Отчеты PBIRS не загружены.")
+                self.main_window.log_message("Метод apply_filters не найден")
         else:
             # Режим Power BI Service
             if not self.main_window.workspaces:

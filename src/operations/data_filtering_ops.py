@@ -125,8 +125,27 @@ class DataFilteringOperations(BaseOperations):
         reports = self.main_window.pbirs_reports
         filtered_reports = []
         
+        # Определяем выбранную папку для фильтрации
+        selected_folder = None
+        if hasattr(self.main_window, 'workspace_combo'):
+            index = self.main_window.workspace_combo.currentIndex()
+            if index >= 0:
+                selected_folder = self.main_window.workspace_combo.itemText(index)
+        
         for report in reports:
             include = True
+            
+            # Фильтр по папке (из комбобокса слева)
+            if include and selected_folder and selected_folder != "Все папки" and selected_folder != '/':
+                report_folder = report.get('FolderDisplay', '/')
+                # Нормализуем: добавляем ведущий слеш если отсутствует
+                if not selected_folder.startswith('/'):
+                    selected_folder_norm = '/' + selected_folder
+                else:
+                    selected_folder_norm = selected_folder
+                # Проверяем, начинается ли папка отчёта с выбранной папки (включая подпапки)
+                if report_folder != selected_folder_norm and not report_folder.startswith(selected_folder_norm + '/'):
+                    include = False
             
             # Фильтр "Без расписаний" — отчёты, у которых нет CacheRefreshPlans
             if hasattr(self.main_window, 'filter_pbirs_no_schedule') and self.main_window.filter_pbirs_no_schedule.isChecked():
@@ -173,13 +192,6 @@ class DataFilteringOperations(BaseOperations):
         
         # ===== 1. Обновляем таблицу отчётов PBIRS =====
         if hasattr(self.main_window, 'update_pbirs_reports_table'):
-            # Получаем текущую выбранную папку
-            selected_folder = None
-            if hasattr(self.main_window, 'workspace_combo'):
-                index = self.main_window.workspace_combo.currentIndex()
-                if index >= 0:
-                    selected_folder = self.main_window.workspace_combo.itemText(index)
-            
             # Получаем фильтр по названию
             name_filter = None
             if hasattr(self.main_window, 'pbirs_report_name_filter'):
