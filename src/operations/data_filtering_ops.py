@@ -39,56 +39,86 @@ class DataFilteringOperations(BaseOperations):
             self._apply_service_filters()
     
     def _apply_service_filters(self):
-        """Применяет фильтры для Power BI Service (облачные датасеты)."""
+        """Применяет фильтры для Power BI Service (облачные датасеты).
+
+        Логика мультивыбора: если выбрано несколько чекбоксов, датасет проходит,
+        если соответствует ЛЮБОМУ из выбранных критериев (OR).
+        Если ни один чекбокс не выбран — показываются все датасеты.
+        Текстовый фильтр по названию работает как AND (дополнительное сужение).
+        """
         if not self.main_window.datasets:
             return
+        
+        # Определяем, какие чекбоксы активны
+        checkbox_filters = []
+        
+        if self.main_window.filter_enabled.isChecked():
+            checkbox_filters.append('enabled')
+        if self.main_window.filter_recent.isChecked():
+            checkbox_filters.append('disabled')
+        if self.main_window.filter_errors.isChecked():
+            checkbox_filters.append('errors')
+        if self.main_window.filter_except_not_use.isChecked():
+            checkbox_filters.append('except_not_use')
+        if self.main_window.filter_in_progress.isChecked():
+            checkbox_filters.append('in_progress')
+        
+        # Получаем текстовый фильтр по названию (AND)
+        name_filter_text = None
+        if hasattr(self.main_window, 'dataset_name_filter') and self.main_window.dataset_name_filter:
+            name_filter_text = self.main_window.dataset_name_filter.text().strip().lower()
         
         filtered_datasets = []
         
         for ds in self.main_window.datasets:
-            include = True
+            # Текстовый фильтр по названию (AND — применяется всегда)
+            if name_filter_text:
+                dataset_name = ds.get('name', '').lower()
+                if name_filter_text not in dataset_name:
+                    continue
             
-            # Фильтр по включенным обновлениям (автообновление включено)
-            if self.main_window.filter_enabled.isChecked():
-                refresh_schedule = ds.get('refresh_schedule', {})
-                enabled = refresh_schedule.get('enabled') if isinstance(refresh_schedule, dict) else None
-                if enabled is not True:
-                    include = False
+            # Если ни один чекбокс не выбран — показываем все датасеты
+            if not checkbox_filters:
+                filtered_datasets.append(ds)
+                continue
             
-            # Фильтр по выключенному автообновлению
-            if self.main_window.filter_recent.isChecked():
-                refresh_schedule = ds.get('refresh_schedule', {})
-                enabled = refresh_schedule.get('enabled') if isinstance(refresh_schedule, dict) else None
-                if enabled is not False:
-                    include = False
+            # Мультивыбор (OR): датасет проходит, если соответствует ЛЮБОМУ из выбранных критериев
+            match = False
             
-            # Фильтр по ошибкам
-            if self.main_window.filter_errors.isChecked():
-                status = ds.get('status', '').lower()
-                if 'failed' not in status and 'error' not in status:
-                    include = False
+            for filter_name in checkbox_filters:
+                if filter_name == 'enabled':
+                    refresh_schedule = ds.get('refresh_schedule', {})
+                    enabled = refresh_schedule.get('enabled') if isinstance(refresh_schedule, dict) else None
+                    if enabled is True:
+                        match = True
+                        break
+                
+                elif filter_name == 'disabled':
+                    refresh_schedule = ds.get('refresh_schedule', {})
+                    enabled = refresh_schedule.get('enabled') if isinstance(refresh_schedule, dict) else None
+                    if enabled is False:
+                        match = True
+                        break
+                
+                elif filter_name == 'errors':
+                    status = ds.get('status', '').lower()
+                    if 'failed' in status or 'error' in status:
+                        match = True
+                        break
+                
+                elif filter_name == 'except_not_use':
+                    name = ds.get('name', '').lower()
+                    if 'not_use' not in name:
+                        match = True
+                        break
+                
+                elif filter_name == 'in_progress':
+                    status = ds.get('status', '').lower()
+                    if 'in progress' in status or 'refreshing' in status or 'unknown' in status:
+                        match = True
+                        break
             
-            # Фильтр "Все кроме not_use" (проверка названия)
-            if self.main_window.filter_except_not_use.isChecked():
-                name = ds.get('name', '').lower()
-                if 'not_use' in name:
-                    include = False
-            
-            # Фильтр по обновляющимся (in progress)
-            if self.main_window.filter_in_progress.isChecked():
-                status = ds.get('status', '').lower()
-                if 'in progress' not in status and 'refreshing' not in status and 'unknown' not in status:
-                    include = False
-            
-            # Фильтр по названию датасета (текстовый фильтр)
-            if hasattr(self.main_window, 'dataset_name_filter') and self.main_window.dataset_name_filter:
-                filter_text = self.main_window.dataset_name_filter.text().strip().lower()
-                if filter_text:
-                    dataset_name = ds.get('name', '').lower()
-                    if filter_text not in dataset_name:
-                        include = False
-            
-            if include:
+            if match:
                 filtered_datasets.append(ds)
         
         # Обновляем таблицу и дерево отфильтрованными данными
@@ -118,7 +148,13 @@ class DataFilteringOperations(BaseOperations):
         self.main_window.log_message(f"Применены фильтры. Показано датасетов: {len(filtered_datasets)}")
     
     def _apply_pbirs_filters(self):
-        """Применяет PBIRS-фильтры ко всем PBIRS-вкладкам (Отчёты, Источники, Детали)."""
+        """Применяет PBIRS-фильтры ко всем PBIRS-вкладкам (Отчёты, Источники, Детали).
+
+        Логика мультивыбора: если выбрано несколько чекбоксов, отчёт проходит,
+        если соответствует ЛЮБОМУ из выбранных критериев (OR).
+        Если ни один чекбокс не выбран — показываются все отчёты (после фильтра по папке).
+        Фильтр по папке работает как AND (обязательный).
+        """
         if not hasattr(self.main_window, 'pbirs_reports') or not self.main_window.pbirs_reports:
             return
         
@@ -132,11 +168,10 @@ class DataFilteringOperations(BaseOperations):
             if index >= 0:
                 selected_folder = self.main_window.workspace_combo.itemText(index)
         
+        # Сначала фильтруем по папке (AND — обязательный фильтр)
+        folder_filtered = []
         for report in reports:
-            include = True
-            
-            # Фильтр по папке (из комбобокса слева)
-            if include and selected_folder and selected_folder != "Все папки" and selected_folder != '/':
+            if selected_folder and selected_folder != "Все папки" and selected_folder != '/':
                 report_folder = report.get('FolderDisplay', '/')
                 # Нормализуем: добавляем ведущий слеш если отсутствует
                 if not selected_folder.startswith('/'):
@@ -144,51 +179,90 @@ class DataFilteringOperations(BaseOperations):
                 else:
                     selected_folder_norm = selected_folder
                 # Проверяем, начинается ли папка отчёта с выбранной папки (включая подпапки)
-                if report_folder != selected_folder_norm and not report_folder.startswith(selected_folder_norm + '/'):
-                    include = False
-            
-            # Фильтр "Без расписаний" — отчёты, у которых нет CacheRefreshPlans
-            if hasattr(self.main_window, 'filter_pbirs_no_schedule') and self.main_window.filter_pbirs_no_schedule.isChecked():
-                refresh_plans = report.get('RefreshPlansList', [])
-                if refresh_plans:
-                    include = False
-            
-            # Фильтр "Без аутентификации" — отчёты, у источников данных которых нет Username
-            if include and hasattr(self.main_window, 'filter_pbirs_no_auth') and self.main_window.filter_pbirs_no_auth.isChecked():
-                data_sources = report.get('DataSourcesList', [])
-                has_auth = False
-                for ds in data_sources:
-                    if ds is None:
-                        continue
-                    data_model = ds.get('DataModelDataSource', {})
-                    if isinstance(data_model, dict):
-                        username = data_model.get('Username', '')
-                        if username:
-                            has_auth = True
+                if report_folder == selected_folder_norm or report_folder.startswith(selected_folder_norm + '/'):
+                    folder_filtered.append(report)
+            else:
+                folder_filtered.append(report)
+        
+        # Определяем, какие чекбоксы активны
+        checkbox_filters = []
+        
+        # Фильтр "Без расписаний"
+        if hasattr(self.main_window, 'filter_pbirs_no_schedule') and self.main_window.filter_pbirs_no_schedule.isChecked():
+            checkbox_filters.append('no_schedule')
+        
+        # Фильтр "Без аутентификации"
+        if hasattr(self.main_window, 'filter_pbirs_no_auth') and self.main_window.filter_pbirs_no_auth.isChecked():
+            checkbox_filters.append('no_auth')
+        
+        # Фильтр "Успешно обновлённые"
+        if hasattr(self.main_window, 'filter_pbirs_success') and self.main_window.filter_pbirs_success.isChecked():
+            checkbox_filters.append('success')
+        
+        # Фильтр "С ошибками последнего обновления"
+        if hasattr(self.main_window, 'filter_pbirs_errors') and self.main_window.filter_pbirs_errors.isChecked():
+            checkbox_filters.append('errors')
+        
+        # Фильтр "В процессе обновления"
+        if hasattr(self.main_window, 'filter_pbirs_in_progress') and self.main_window.filter_pbirs_in_progress.isChecked():
+            checkbox_filters.append('in_progress')
+        
+        # Если ни один чекбокс не выбран — показываем все отчёты (после фильтра по папке)
+        if not checkbox_filters:
+            filtered_reports = folder_filtered
+        else:
+            # Мультивыбор (OR): отчёт проходит, если соответствует ЛЮБОМУ из выбранных критериев
+            for report in folder_filtered:
+                match = False
+                
+                for filter_name in checkbox_filters:
+                    if filter_name == 'no_schedule':
+                        # Отчёт без расписаний — нет CacheRefreshPlans
+                        refresh_plans = report.get('RefreshPlansList', [])
+                        if not refresh_plans:
+                            match = True
                             break
-                if has_auth:
-                    include = False
-            
-            # Фильтр "Успешно обновлённые" — LastStatus содержит "success" или "completed"
-            if include and hasattr(self.main_window, 'filter_pbirs_success') and self.main_window.filter_pbirs_success.isChecked():
-                last_status = report.get('LastStatus', '').lower()
-                if 'success' not in last_status and 'completed' not in last_status and 'завершен' not in last_status:
-                    include = False
-            
-            # Фильтр "С ошибками последнего обновления" — LastStatus содержит "error" или "failed"
-            if include and hasattr(self.main_window, 'filter_pbirs_errors') and self.main_window.filter_pbirs_errors.isChecked():
-                last_status = report.get('LastStatus', '').lower()
-                if 'error' not in last_status and 'failed' not in last_status and 'ошибк' not in last_status:
-                    include = False
-            
-            # Фильтр "В процессе обновления" — LastStatus содержит "refreshing" (статус от PBIRS API)
-            if include and hasattr(self.main_window, 'filter_pbirs_in_progress') and self.main_window.filter_pbirs_in_progress.isChecked():
-                last_status = report.get('LastStatus', '').lower()
-                if 'refreshing' not in last_status:
-                    include = False
-            
-            if include:
-                filtered_reports.append(report)
+                    
+                    elif filter_name == 'no_auth':
+                        # Отчёт без аутентификации — у всех источников данных нет Username
+                        data_sources = report.get('DataSourcesList', [])
+                        all_no_auth = True
+                        for ds in data_sources:
+                            if ds is None:
+                                continue
+                            data_model = ds.get('DataModelDataSource', {})
+                            if isinstance(data_model, dict):
+                                username = data_model.get('Username', '')
+                                if username:
+                                    all_no_auth = False
+                                    break
+                        if all_no_auth and data_sources:
+                            match = True
+                            break
+                    
+                    elif filter_name == 'success':
+                        # Успешно обновлённые
+                        last_status = report.get('LastStatus', '').lower()
+                        if 'success' in last_status or 'completed' in last_status or 'завершен' in last_status:
+                            match = True
+                            break
+                    
+                    elif filter_name == 'errors':
+                        # С ошибками последнего обновления
+                        last_status = report.get('LastStatus', '').lower()
+                        if 'error' in last_status or 'failed' in last_status or 'ошибк' in last_status:
+                            match = True
+                            break
+                    
+                    elif filter_name == 'in_progress':
+                        # В процессе обновления
+                        last_status = report.get('LastStatus', '').lower()
+                        if 'refreshing' in last_status:
+                            match = True
+                            break
+                
+                if match:
+                    filtered_reports.append(report)
         
         # ===== 1. Обновляем таблицу отчётов PBIRS =====
         if hasattr(self.main_window, 'update_pbirs_reports_table'):
