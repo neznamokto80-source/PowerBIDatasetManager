@@ -213,6 +213,23 @@ class UIPanels:
         # logs_tab = self.create_logs_tab()
         # self.main.tab_widget.addTab(logs_tab, "Логи")
         
+        # Блок статистики PBIRS (справа от заголовков вкладок, только для режима server)
+        self.main.pbirs_stats_widget = QWidget()
+        stats_layout = QHBoxLayout(self.main.pbirs_stats_widget)
+        stats_layout.setContentsMargins(5, 0, 5, 0)
+        stats_layout.setSpacing(10)
+        
+        self.main.pbirs_stats_total = QLabel("Всего: 0")
+        self.main.pbirs_stats_errors = QLabel("С ошибками: 0")
+        self.main.pbirs_stats_size = QLabel("Общий размер: 0 МБ")
+        
+        for label in [self.main.pbirs_stats_total, self.main.pbirs_stats_errors, self.main.pbirs_stats_size]:
+            label.setStyleSheet("font-weight: bold; padding: 2px 8px;")
+            stats_layout.addWidget(label)
+        
+        self.main.tab_widget.setCornerWidget(self.main.pbirs_stats_widget, Qt.Corner.TopRightCorner)
+        self.main.pbirs_stats_widget.setVisible(False)  # По умолчанию скрыт
+        
         layout.addWidget(self.main.tab_widget)
         return panel
         
@@ -544,6 +561,10 @@ class UIPanels:
         self.main.pbirs_reports_table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         # Подключаем обработчик двойного клика
         self.main.pbirs_reports_table.doubleClicked.connect(self.main.on_pbirs_report_double_clicked)
+        # Подключаем сортировку по двойному клику на заголовок колонки
+        self.main.pbirs_reports_table.horizontalHeader().sectionDoubleClicked.connect(
+            lambda col: self.main.sort_pbirs_table('reports', col)
+        )
         
         layout.addWidget(self.main.pbirs_reports_table)
         
@@ -628,6 +649,10 @@ class UIPanels:
         
         self.main.pbirs_sources_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.main.pbirs_sources_table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        # Подключаем сортировку по двойному клику на заголовок колонки
+        self.main.pbirs_sources_table.horizontalHeader().sectionDoubleClicked.connect(
+            lambda col: self.main.sort_pbirs_table('sources', col)
+        )
         
         layout.addWidget(self.main.pbirs_sources_table)
         

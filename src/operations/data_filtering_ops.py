@@ -323,6 +323,10 @@ class DataFilteringOperations(BaseOperations):
         if hasattr(self.main_window, 'pbirs_operations') and hasattr(self.main_window.pbirs_operations, '_update_pbirs_details_report_combo'):
             self.main_window.pbirs_operations._update_pbirs_details_report_combo(filtered_reports)
         
+        # ===== 5. Обновляем статистику PBIRS =====
+        if hasattr(self.main_window, 'update_pbirs_stats'):
+            self.main_window.update_pbirs_stats(filtered_reports)
+        
         self.main_window.log_message(f"Применены PBIRS-фильтры. Показано отчётов: {len(filtered_reports)}")
     
     # ========== Методы мониторинга ==========

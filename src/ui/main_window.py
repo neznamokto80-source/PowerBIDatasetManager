@@ -55,6 +55,9 @@ class PowerBIMonitorUI(QMainWindow):
         self.current_mode = None  # 'service' или 'server'
         self.debug_data_path = None  # Путь для сохранения сырых логов
         
+        # Состояние сортировки для таблиц PBIRS
+        self._pbirs_sort_states = {}
+        
         # Инициализация компонентов UI
         self.ui_components = UIComponents(self)
         
@@ -387,6 +390,9 @@ class PowerBIMonitorUI(QMainWindow):
         
         # Автоматически подгоняем ширину колонок
         #table.resizeColumnsToContents()
+        
+        # Обновляем статистику PBIRS на основе отфильтрованных данных
+        self.update_pbirs_stats(filtered_reports)
     
     def update_pbirs_sources_table(self, sources_data, report_filter=None, source_filter=None, kind_filter=None, user_filter=None):
         """
@@ -575,6 +581,76 @@ class PowerBIMonitorUI(QMainWindow):
         # Автоматически подгоняем ширину колонок
         #table.resizeColumnsToContents()
     
+    def sort_pbirs_table(self, table_key: str, column: int):
+        """
+        Сортирует таблицу PBIRS по выбранной колонке.
+        Первый двойной клик — сортировка по возрастанию,
+        повторный по той же колонке — по убыванию.
+        
+        Args:
+            table_key: Ключ таблицы ('reports' или 'sources')
+            column: Индекс колонки для сортировки
+        """
+        table_map = {
+            'reports': getattr(self, 'pbirs_reports_table', None),
+            'sources': getattr(self, 'pbirs_sources_table', None),
+        }
+        table = table_map.get(table_key)
+        if not table:
+            return
+        
+        state = self._pbirs_sort_states.get(table_key, {})
+        prev_col = state.get('column')
+        prev_order = state.get('order', Qt.SortOrder.AscendingOrder)
+        
+        if prev_col == column:
+            # Та же колонка — инвертируем порядок
+            new_order = (Qt.SortOrder.DescendingOrder
+                         if prev_order == Qt.SortOrder.AscendingOrder
+                         else Qt.SortOrder.AscendingOrder)
+        else:
+            # Другая колонка — сортируем по возрастанию
+            new_order = Qt.SortOrder.AscendingOrder
+        
+        self._pbirs_sort_states[table_key] = {'column': column, 'order': new_order}
+        table.sortItems(column, new_order)
+    
+    def update_pbirs_stats(self, reports):
+        """
+        Обновляет блок статистики PBIRS на основе отфильтрованных данных.
+        Считает: всего отчётов, с ошибками, общий размер в МБ.
+        
+        Args:
+            reports: Список отфильтрованных отчётов PBIRS
+        """
+        if not hasattr(self, 'pbirs_stats_total'):
+            return
+        
+        total = len(reports)
+        
+        # Считаем отчёты с ошибками
+        errors = 0
+        total_size_mb = 0.0
+        for report in reports:
+            # Проверка статуса ошибки
+            last_status = report.get('LastStatus', '')
+            if last_status and ('error' in last_status.lower()
+                                or 'failed' in last_status.lower()
+                                or 'ошибк' in last_status.lower()):
+                errors += 1
+            
+            # Суммируем размер
+            size_str = report.get('SizeDisplay', '0 МБ')
+            try:
+                size_val = float(size_str.replace(' МБ', '').replace(',', '.').strip())
+                total_size_mb += size_val
+            except (ValueError, AttributeError):
+                pass
+        
+        self.pbirs_stats_total.setText(f"Всего: {total}")
+        self.pbirs_stats_errors.setText(f"С ошибками: {errors}")
+        self.pbirs_stats_size.setText(f"Общий размер: {total_size_mb:.1f} МБ")
+    
     def update_tabs_visibility(self):
         """
         Обновляет видимость вкладок в зависимости от текущего режима.
@@ -598,6 +674,10 @@ class PowerBIMonitorUI(QMainWindow):
             self.tab_widget.setTabVisible(2, False)
             self.tab_widget.setTabVisible(3, False)
             self.tab_widget.setTabVisible(4, False)
+        
+        # Показываем/скрываем блок статистики PBIRS в зависимости от режима
+        if hasattr(self, 'pbirs_stats_widget'):
+            self.pbirs_stats_widget.setVisible(self.current_mode == 'server')
     
     def set_pbirs_filters_visible(self, visible: bool):
         """Переключает видимость PBIRS-фильтров в левой панели.
