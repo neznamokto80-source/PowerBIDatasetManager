@@ -461,7 +461,7 @@ class DataFilteringOperations(BaseOperations):
                 return dt
 
         # Формат "DD.MM.YYYY, HH:MM" или "DD.MM.YYYY в HH:MM"
-        m = re.match(r'(\d{2})\.(\d{2})\.(\d{4})[,\s]+в?\s*(\d{1,2}):(\d{2})', text)
+        m = re.match(r'(\d{2})\.(\d{2})\.(\d{4})[,]\s*в?\s*(\d{1,2}):(\d{2})', text)
         if m:
             try:
                 day, month, year, hour, minute = map(int, m.groups())
