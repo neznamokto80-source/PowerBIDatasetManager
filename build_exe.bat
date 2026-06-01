@@ -1,5 +1,6 @@
 @echo off
-chcp 65001 >nul
+:: Переключаем кодировку на Windows-1251 для поддержки кириллицы
+chcp 1251 >nul
 setlocal enabledelayedexpansion
 
 :: === НАСТРОЙКИ ===
@@ -17,24 +18,24 @@ echo ========================================
 :: 1. Установка PyInstaller при необходимости
 python -c "import PyInstaller" >nul 2>&1
 if %errorlevel% neq 0 (
-    echo [⚠️] Установка PyInstaller...
+    echo [!] Установка PyInstaller...
     pip install pyinstaller
 )
 
 :: 2. Установка зависимостей (если есть requirements.txt)
 if exist requirements.txt (
-    echo [📦] Установка зависимостей...
+    echo [PKG] Установка зависимостей...
     pip install -r requirements.txt
 )
 
 :: 3. Очистка предыдущих сборок
-echo [🧹] Очистка...
+echo [CLEAN] Очистка временных файлов...
 if exist build rmdir /s /q build
 if exist dist rmdir /s /q dist
 if exist "%OUTPUT_NAME%.spec" del /q "%OUTPUT_NAME%.spec"
 
 :: 4. Компиляция
-echo [🚀] Компиляция...
+echo [BUILD] Компиляция...
 python -m PyInstaller --onefile ^
     --name "%OUTPUT_NAME%" ^
     --console ^
@@ -51,9 +52,9 @@ python -m PyInstaller --onefile ^
 
 :: 5. Если компиляция успешна – копируем и чистим
 if exist "dist\%OUTPUT_NAME%.exe" (
-    echo [✅] Копирование в текущую папку...
+    echo [OK] Копирование в текущую папку...
     copy "dist\%OUTPUT_NAME%.exe" . >nul
-    echo [🗑️] Удаление временных файлов...
+    echo [DEL] Удаление временных файлов...
     if exist build rmdir /s /q build
     if exist dist rmdir /s /q dist
     if exist "%OUTPUT_NAME%.spec" del /q "%OUTPUT_NAME%.spec"
@@ -63,7 +64,7 @@ if exist "dist\%OUTPUT_NAME%.exe" (
     echo    Файл: %CD%\%OUTPUT_NAME%.exe
     echo ========================================
 ) else (
-    echo [❌] Ошибка: EXE не создан.
+    echo [FAIL] Ошибка: EXE не создан.
 )
 
 pause
