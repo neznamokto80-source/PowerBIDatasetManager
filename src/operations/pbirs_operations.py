@@ -212,7 +212,7 @@ class PBIRSOperations(BaseOperations):
                         'CreatedDateFormatted': created_date_formatted,
                         'ModifiedDate': modified_date_raw,
                         'ModifiedDateFormatted': modified_date_formatted,
-                        'NextRunDisplay': report.get('NextRunDisplay', 'Не запланировано')
+                        'NextRunDisplay': report.get('NextRunDisplayDetailed', report.get('NextRunDisplay', 'Не запланировано'))
                     }
                     sources_data.append(source_item)
             

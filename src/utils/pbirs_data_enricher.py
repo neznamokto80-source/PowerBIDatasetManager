@@ -291,8 +291,8 @@ def extract_data_sources_for_table(reports: List[Dict[str, Any]]) -> List[Dict[s
             created_date_formatted = format_datetime(created_date) if created_date else ""
             modified_date_formatted = format_datetime(modified_date) if modified_date else ""
             
-            # Получаем NextRunDisplay из родительского отчёта
-            next_run_display = report.get('NextRunDisplay', 'Не запланировано')
+            # Получаем NextRunDisplay из родительского отчёта (та же логика, что и на вкладке Отчёты PBIRS)
+            next_run_display = report.get('NextRunDisplayDetailed', report.get('NextRunDisplay', 'Не запланировано'))
 
             sources.append({
                 'ReportId': report_id,
