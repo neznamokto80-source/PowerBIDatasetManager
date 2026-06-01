@@ -486,6 +486,10 @@ class PowerBIMonitorUI(QMainWindow):
             username = source_item.get('Username', '')
             table.setItem(row, 5, QTableWidgetItem(username))
             
+            # Колонка 6: Следующее обновление
+            next_run = source_item.get('NextRunDisplay', 'Не запланировано')
+            table.setItem(row, 6, QTableWidgetItem(next_run))
+            
             # Создаем расширенный tooltip с дополнительной информацией
             tooltip_lines = []
             if connection_string:
