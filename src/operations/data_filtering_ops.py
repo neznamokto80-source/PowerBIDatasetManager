@@ -482,10 +482,10 @@ class DataFilteringOperations(BaseOperations):
                     continue
                 conn_str = ds.get('ConnectionString', '')
                 if conn_str:
-                    # Нормализуем: берём первую часть до точки с запятой
+                    # Нормализуем: берём первую часть до точки с запятой, без учёта регистра
                     if ';' in conn_str:
                         conn_str = conn_str.split(';')[0]
-                    conn_strings.add(conn_str)
+                    conn_strings.add(conn_str.lower())
 
             if not conn_strings:
                 continue
