@@ -6,6 +6,8 @@
 """
 
 import logging
+from collections import defaultdict
+from typing import Any, Dict, List
 
 from PyQt6.QtWidgets import QTreeWidgetItem
 from PyQt6.QtGui import QBrush
@@ -264,6 +266,10 @@ class DataFilteringOperations(BaseOperations):
                 if match:
                     filtered_reports.append(report)
         
+        # Фильтр "Одинаковое время обновления" (AND — применяется после OR-фильтров)
+        if hasattr(self.main_window, 'filter_pbirs_same_time') and self.main_window.filter_pbirs_same_time.isChecked():
+            filtered_reports = self._filter_same_time_reports(filtered_reports)
+        
         # ===== 1. Обновляем таблицу отчётов PBIRS =====
         if hasattr(self.main_window, 'update_pbirs_reports_table'):
             # Получаем фильтр по названию
@@ -349,9 +355,8 @@ class DataFilteringOperations(BaseOperations):
             self.main_window.status_bar.showMessage("Мониторинг запущен", 3000)
             self.main_window.log_message(f"✓ Мониторинг запущен (интервал: {interval//1000} сек)")
 
-            # Обновляем статус
-            self.main_window.monitor_status.setText("Мониторинг активен")
-            self.main_window.monitor_status.setStyleSheet("color: green; font-weight: bold;")
+            # Обновляем статус в заголовке группы
+            self.main_window._update_monitor_group_title()
 
             # Сразу обновляем данные
             self.main_window.refresh_data()
@@ -376,10 +381,59 @@ class DataFilteringOperations(BaseOperations):
             self.main_window.status_bar.showMessage("Мониторинг остановлен", 5000)
             self.main_window.log_message("✓ Мониторинг остановлен")
 
-            # Обновляем статус
-            self.main_window.monitor_status.setText("Мониторинг не активен")
-            self.main_window.monitor_status.setStyleSheet("color: black; font-weight: normal;")
+            # Обновляем статус в заголовке группы
+            self.main_window._update_monitor_group_title()
 
         except Exception as e:
             self.main_window.log_message(f"✗ Ошибка остановки мониторинга: {e}")
             self.main_window.status_bar.showMessage("Ошибка остановки мониторинга", 5000)
+
+    def _filter_same_time_reports(self, reports: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Фильтрует отчёты: оставляет только те, у которых хотя бы 1 источник данных (ConnectionString)
+        совпадает с другим отчётом И время следующего обновления совпадает.
+        "Не запланировано" не считается совпадением.
+        """
+        if not reports:
+            return []
+
+        # Строим индекс: (ConnectionString, NextRunDisplay) -> список отчётов
+        index = defaultdict(list)
+
+        for report in reports:
+            next_run = report.get('NextRunDisplay', '')
+            if next_run == "Не запланировано":
+                continue
+
+            data_sources = report.get('DataSourcesList', [])
+            conn_strings = set()
+            for ds in data_sources:
+                if ds is None:
+                    continue
+                conn_str = ds.get('ConnectionString', '')
+                if conn_str:
+                    # Нормализуем: берём первую часть до точки с запятой
+                    if ';' in conn_str:
+                        conn_str = conn_str.split(';')[0]
+                    conn_strings.add(conn_str)
+
+            if not conn_strings:
+                continue
+
+            for conn_str in conn_strings:
+                key = (conn_str, next_run)
+                index[key].append(report)
+
+        # Собираем отчёты, у которых есть хотя бы один "дубликат" по ключу
+        result = []
+        seen_ids = set()
+
+        for key, rep_list in index.items():
+            if len(rep_list) >= 2:
+                for rep in rep_list:
+                    rep_id = rep.get('Id', '')
+                    if rep_id not in seen_ids:
+                        seen_ids.add(rep_id)
+                        result.append(rep)
+
+        return result

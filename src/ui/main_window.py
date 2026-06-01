@@ -931,10 +931,15 @@ class PowerBIMonitorUI(QMainWindow):
             return 30000  # 30 сек по умолчанию
 
     def _update_monitor_group_title(self):
-        """Обновляет заголовок группы мониторинга при смене периодичности."""
+        """Обновляет заголовок группы мониторинга при смене периодичности и статуса."""
         if hasattr(self, 'monitor_group'):
             interval_sec = self.get_monitor_interval() // 1000
-            self.monitor_group.setTitle(f"Мониторинг (периодичность опроса {interval_sec} сек)")
+            if getattr(self, 'auto_refresh_enabled', False):
+                self.monitor_group.setTitle(f"Мониторинг активен (периодичность опроса {interval_sec} сек)")
+                self.monitor_group.setStyleSheet("QGroupBox { color: green; font-weight: bold; }")
+            else:
+                self.monitor_group.setTitle(f"Мониторинг не активен (периодичность опроса {interval_sec} сек)")
+                self.monitor_group.setStyleSheet("QGroupBox { color: black; font-weight: normal; }")
 
         # Если мониторинг активен — перезапускаем таймер с новым интервалом
         if getattr(self, 'auto_refresh_enabled', False) and hasattr(self, 'update_timer'):

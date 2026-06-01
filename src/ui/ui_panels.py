@@ -115,6 +115,10 @@ class UIPanels:
         self.main.filter_pbirs_in_progress.stateChanged.connect(lambda state, cb=self.main.filter_pbirs_in_progress: self.main.apply_filters())
         filter_layout.addWidget(self.main.filter_pbirs_in_progress)
         
+        self.main.filter_pbirs_same_time = create_check_box("Одинаковое время обновления")
+        self.main.filter_pbirs_same_time.stateChanged.connect(lambda state, cb=self.main.filter_pbirs_same_time: self.main.apply_filters())
+        filter_layout.addWidget(self.main.filter_pbirs_same_time)
+        
         filter_group = create_group_box("Фильтры", filter_layout)
         layout.addWidget(filter_group)
         
@@ -123,9 +127,6 @@ class UIPanels:
 
         # Группа "Мониторинг"
         monitor_layout = QVBoxLayout()
-
-        self.main.monitor_status = create_label("Мониторинг не активен")
-        monitor_layout.addWidget(self.main.monitor_status)
 
         # RadioButton для выбора периодичности (единичный выбор)
         period_layout = QHBoxLayout()
@@ -860,6 +861,8 @@ class UIPanels:
             self.main.filter_pbirs_errors.setVisible(visible)
         if hasattr(self.main, 'filter_pbirs_in_progress'):
             self.main.filter_pbirs_in_progress.setVisible(visible)
+        if hasattr(self.main, 'filter_pbirs_same_time'):
+            self.main.filter_pbirs_same_time.setVisible(visible)
         
         # Блокируем сигналы на время сброса чекбоксов, чтобы избежать лишних вызовов apply_filters()
         if visible:
@@ -906,3 +909,7 @@ class UIPanels:
                 self.main.filter_pbirs_in_progress.blockSignals(True)
                 self.main.filter_pbirs_in_progress.setChecked(False)
                 self.main.filter_pbirs_in_progress.blockSignals(False)
+            if hasattr(self.main, 'filter_pbirs_same_time'):
+                self.main.filter_pbirs_same_time.blockSignals(True)
+                self.main.filter_pbirs_same_time.setChecked(False)
+                self.main.filter_pbirs_same_time.blockSignals(False)
