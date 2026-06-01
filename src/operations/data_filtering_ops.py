@@ -6,8 +6,10 @@
 """
 
 import logging
+import re
 from collections import defaultdict
-from typing import Any, Dict, List
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
 
 from PyQt6.QtWidgets import QTreeWidgetItem
 from PyQt6.QtGui import QBrush
@@ -388,21 +390,89 @@ class DataFilteringOperations(BaseOperations):
             self.main_window.log_message(f"✗ Ошибка остановки мониторинга: {e}")
             self.main_window.status_bar.showMessage("Ошибка остановки мониторинга", 5000)
 
+    @staticmethod
+    def _parse_next_run_to_minutes(next_run_str: str) -> Optional[datetime]:
+        """
+        Парсит строку NextRunDisplay в datetime, округлённый до минут.
+        Поддерживает форматы:
+        - "Сегодня, HH:MM"
+        - "Завтра, HH:MM"
+        - "Послезавтра, HH:MM"
+        - "ДеньНедели, HH:MM"
+        - "DD.MM.YYYY, HH:MM"
+        - "DD.MM.YYYY в HH:MM"
+        """
+        if not next_run_str or next_run_str in ["Не запланировано", "Просрочено"]:
+            return None
+
+        now = datetime.now()
+        text = next_run_str.strip()
+
+        # Формат "Сегодня, HH:MM"
+        m = re.match(r'^Сегодня,\s*(\d{1,2}):(\d{2})$', text)
+        if m:
+            dt = now.replace(hour=int(m.group(1)), minute=int(m.group(2)), second=0, microsecond=0)
+            return dt
+
+        # Формат "Завтра, HH:MM"
+        m = re.match(r'^Завтра,\s*(\d{1,2}):(\d{2})$', text)
+        if m:
+            dt = (now + timedelta(days=1)).replace(hour=int(m.group(1)), minute=int(m.group(2)), second=0, microsecond=0)
+            return dt
+
+        # Формат "Послезавтра, HH:MM"
+        m = re.match(r'^Послезавтра,\s*(\d{1,2}):(\d{2})$', text)
+        if m:
+            dt = (now + timedelta(days=2)).replace(hour=int(m.group(1)), minute=int(m.group(2)), second=0, microsecond=0)
+            return dt
+
+        # Формат "ДеньНедели, HH:MM" (Понедельник, Вторник, ...)
+        days_map = {
+            'понедельник': 0, 'вторник': 1, 'среда': 2, 'четверг': 3,
+            'пятница': 4, 'суббота': 5, 'воскресенье': 6
+        }
+        m = re.match(r'^(\w+),\s*(\d{1,2}):(\d{2})$', text)
+        if m:
+            day_name = m.group(1).lower()
+            if day_name in days_map:
+                target_weekday = days_map[day_name]
+                hour = int(m.group(2))
+                minute = int(m.group(3))
+                # Ищем ближайший день недели вперёд (не сегодня)
+                current_weekday = now.weekday()
+                days_ahead = target_weekday - current_weekday
+                if days_ahead <= 0:
+                    days_ahead += 7
+                dt = (now + timedelta(days=days_ahead)).replace(hour=hour, minute=minute, second=0, microsecond=0)
+                return dt
+
+        # Формат "DD.MM.YYYY, HH:MM" или "DD.MM.YYYY в HH:MM"
+        m = re.match(r'(\d{2})\.(\d{2})\.(\d{4})[,\s]+в?\s*(\d{1,2}):(\d{2})', text)
+        if m:
+            try:
+                day, month, year, hour, minute = map(int, m.groups())
+                return datetime(year, month, day, hour, minute)
+            except:
+                return None
+
+        return None
+
     def _filter_same_time_reports(self, reports: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
         Фильтрует отчёты: оставляет только те, у которых хотя бы 1 источник данных (ConnectionString)
-        совпадает с другим отчётом И время следующего обновления совпадает.
+        совпадает с другим отчётом И время следующего обновления совпадает (с округлением до минут).
         "Не запланировано" не считается совпадением.
         """
         if not reports:
             return []
 
-        # Строим индекс: (ConnectionString, NextRunDisplay) -> список отчётов
+        # Строим индекс: (ConnectionString, datetime_rounded_to_minutes) -> список отчётов
         index = defaultdict(list)
 
         for report in reports:
-            next_run = report.get('NextRunDisplay', '')
-            if next_run == "Не запланировано":
+            next_run_str = report.get('NextRunDisplay', '')
+            next_run_dt = self._parse_next_run_to_minutes(next_run_str)
+            if next_run_dt is None:
                 continue
 
             data_sources = report.get('DataSourcesList', [])
@@ -421,7 +491,7 @@ class DataFilteringOperations(BaseOperations):
                 continue
 
             for conn_str in conn_strings:
-                key = (conn_str, next_run)
+                key = (conn_str, next_run_dt)
                 index[key].append(report)
 
         # Собираем отчёты, у которых есть хотя бы один "дубликат" по ключу
