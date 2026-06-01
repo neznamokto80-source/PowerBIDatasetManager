@@ -474,7 +474,7 @@ class DataFilteringOperations(BaseOperations):
     def _build_same_time_report_ids(self, reports: List[Dict[str, Any]]) -> set:
         """
         Строит множество ID отчётов, у которых хотя бы 1 источник данных (ConnectionString)
-        совпадает с другим отчётом И время следующего обновления совпадает (с округлением до минут).
+        совпадает с другим отчётом И время следующего обновления совпадает.
         "Не запланировано" не считается совпадением.
         """
         if not reports:
@@ -484,9 +484,9 @@ class DataFilteringOperations(BaseOperations):
         index = defaultdict(list)
 
         for report in reports:
-            next_run_str = report.get('NextRunDisplay', '')
-            next_run_dt = self._parse_next_run_to_minutes(next_run_str)
-            if next_run_dt is None:
+            next_run_str = report.get('NextRunDisplayDetailed', '')
+            next_run_dt = next_run_str#self._parse_next_run_to_minutes(next_run_str)
+            if next_run_dt =="Не запланировано":
                 continue
 
             data_sources = report.get('DataSourcesList', [])
