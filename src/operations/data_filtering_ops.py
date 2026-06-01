@@ -211,6 +211,17 @@ class DataFilteringOperations(BaseOperations):
         if hasattr(self.main_window, 'filter_pbirs_in_progress') and self.main_window.filter_pbirs_in_progress.isChecked():
             checkbox_filters.append('in_progress')
         
+        # Фильтр "Одинаковое время обновления"
+        same_time_active = False
+        if hasattr(self.main_window, 'filter_pbirs_same_time') and self.main_window.filter_pbirs_same_time.isChecked():
+            checkbox_filters.append('same_time')
+            same_time_active = True
+        
+        # Если фильтр same_time активен, предварительно строим индекс дубликатов
+        same_time_ids = set()
+        if same_time_active:
+            same_time_ids = self._build_same_time_report_ids(folder_filtered)
+        
         # Если ни один чекбокс не выбран — показываем все отчёты (после фильтра по папке)
         if not checkbox_filters:
             filtered_reports = folder_filtered
@@ -264,13 +275,16 @@ class DataFilteringOperations(BaseOperations):
                         if 'refreshing' in last_status:
                             match = True
                             break
+                    
+                    elif filter_name == 'same_time':
+                        # Одинаковое время обновления и источник
+                        report_id = report.get('Id', '')
+                        if report_id in same_time_ids:
+                            match = True
+                            break
                 
                 if match:
                     filtered_reports.append(report)
-        
-        # Фильтр "Одинаковое время обновления" (AND — применяется после OR-фильтров)
-        if hasattr(self.main_window, 'filter_pbirs_same_time') and self.main_window.filter_pbirs_same_time.isChecked():
-            filtered_reports = self._filter_same_time_reports(filtered_reports)
         
         # ===== 1. Обновляем таблицу отчётов PBIRS =====
         if hasattr(self.main_window, 'update_pbirs_reports_table'):
@@ -457,14 +471,14 @@ class DataFilteringOperations(BaseOperations):
 
         return None
 
-    def _filter_same_time_reports(self, reports: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _build_same_time_report_ids(self, reports: List[Dict[str, Any]]) -> set:
         """
-        Фильтрует отчёты: оставляет только те, у которых хотя бы 1 источник данных (ConnectionString)
+        Строит множество ID отчётов, у которых хотя бы 1 источник данных (ConnectionString)
         совпадает с другим отчётом И время следующего обновления совпадает (с округлением до минут).
         "Не запланировано" не считается совпадением.
         """
         if not reports:
-            return []
+            return set()
 
         # Строим индекс: (ConnectionString, datetime_rounded_to_minutes) -> список отчётов
         index = defaultdict(list)
@@ -494,16 +508,14 @@ class DataFilteringOperations(BaseOperations):
                 key = (conn_str, next_run_dt)
                 index[key].append(report)
 
-        # Собираем отчёты, у которых есть хотя бы один "дубликат" по ключу
-        result = []
-        seen_ids = set()
+        # Собираем ID отчётов, у которых есть хотя бы один "дубликат" по ключу
+        result = set()
 
         for key, rep_list in index.items():
             if len(rep_list) >= 2:
                 for rep in rep_list:
                     rep_id = rep.get('Id', '')
-                    if rep_id not in seen_ids:
-                        seen_ids.add(rep_id)
-                        result.append(rep)
+                    if rep_id:
+                        result.add(rep_id)
 
         return result
