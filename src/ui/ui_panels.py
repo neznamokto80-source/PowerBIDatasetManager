@@ -642,12 +642,12 @@ class UIPanels:
         # Настройка ширины колонок
         header = self.main.pbirs_sources_table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)  # Папка
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)  # Название отчета
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)  # ConnectionString
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)  # Название отчета
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)  # ConnectionString
         header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)  # Тип (Kind)
         header.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)  # Дата изменения
         header.setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)  # Пользователь
-        header.setSectionResizeMode(6, QHeaderView.ResizeMode.Stretch)  # Следующее обновление
+        header.setSectionResizeMode(6, QHeaderView.ResizeMode.ResizeToContents)  # Следующее обновление
         
         self.main.pbirs_sources_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.main.pbirs_sources_table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
