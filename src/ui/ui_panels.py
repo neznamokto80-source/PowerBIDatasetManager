@@ -41,7 +41,38 @@ class UIPanels:
             main_window: Экземпляр PowerBIMonitorUI
         """
         self.main = main_window
-    
+
+    def _apply_min_header_width(self, table, columns, factor=1.5):
+        """
+        Задаёт минимальную ширину динамических колонок так, чтобы она была
+        не меньше длины текста заголовка * factor (по умолчанию 1.5).
+
+        Режим QHeaderView.Stretch не сжимает секцию ниже её текущей ширины,
+        заданной через resizeSection, поэтому такой вызов устанавливает
+        гарантированный минимум без потери растяжения по ширине окна.
+
+        Args:
+            table: QTableWidget.
+            columns: Список индексов колонок, для которых задать минимум.
+            factor: Множитель от длины текста заголовка (по умолчанию 1.5).
+        """
+        if not columns:
+            return
+        header = table.horizontalHeader()
+        font_metrics = table.fontMetrics()
+        for col in columns:
+            text = table.horizontalHeaderItem(col).text() if table.horizontalHeaderItem(col) else ''
+            if not text:
+                continue
+            # Ширина текста заголовка (с учётом отступов секции)
+            if hasattr(font_metrics, 'horizontalAdvance'):
+                text_width = font_metrics.horizontalAdvance(text)
+            else:
+                text_width = font_metrics.boundingRect(text).width()
+            # Добавляем запас под padding заголовка (~14px с каждой стороны)
+            min_width = int(text_width * factor) + 28
+            header.resizeSection(col, max(min_width, header.sectionSize(col)))
+
     def create_left_panel(self):
         """Создает левую панель навигации."""
         panel = QWidget()
@@ -569,6 +600,8 @@ class UIPanels:
         self.main.pbirs_reports_table.verticalHeader().setDefaultSectionSize(
             self.main.pbirs_reports_table.verticalHeader().defaultSectionSize() * 2
         )
+        # Минимальная ширина динамических колонок — не меньше длины заголовка * 1.5
+        self._apply_min_header_width(self.main.pbirs_reports_table, [0, 1, 4], factor=1.5)
 
         self.main.pbirs_reports_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.main.pbirs_reports_table.setSelectionMode(QAbstractItemView.ExtendedSelection)
@@ -673,6 +706,8 @@ class UIPanels:
         self.main.pbirs_sources_table.verticalHeader().setDefaultSectionSize(
             self.main.pbirs_sources_table.verticalHeader().defaultSectionSize() * 2
         )
+        # Минимальная ширина динамических колонок — не меньше длины заголовка * 1.5
+        self._apply_min_header_width(self.main.pbirs_sources_table, [0, 1, 2], factor=1.5)
 
         self.main.pbirs_sources_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.main.pbirs_sources_table.setSelectionMode(QAbstractItemView.ExtendedSelection)
