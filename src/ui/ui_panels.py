@@ -162,8 +162,8 @@ class UIPanels:
         # Группа "Настройки"
         settings_layout = QVBoxLayout()
         
-        # Чекбокс темы
-        self.main.theme_checkbox = create_check_box("Тёмная тема")
+        # Чекбокс темы (включён по умолчанию, т.к. по умолчанию используется тёмная тема)
+        self.main.theme_checkbox = create_check_box("Тёмная тема", checked=True)
         self.main.theme_checkbox.stateChanged.connect(self.main.toggle_theme)
         settings_layout.addWidget(self.main.theme_checkbox)
         

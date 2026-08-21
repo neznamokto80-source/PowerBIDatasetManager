@@ -93,7 +93,7 @@ def main():
     # Применяем тему по умолчанию (Catppuccin) до создания окна
     apply_theme_to_app(DEFAULT_THEME_NAME)
     window = PowerBIMonitorUI()
-    window.show()
+    window.showMaximized()
     sys.exit(app.exec())
 
 

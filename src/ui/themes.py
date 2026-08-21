@@ -100,7 +100,7 @@ QListWidget::item:selected, QListView::item:selected { background-color: #45475a
 
 /* --- Вкладки --- */
 QTabWidget::pane { border: 1px solid #313244; border-radius: 8px; background-color: #1e1e2e; }
-QTabBar::tab { background-color: #181825; color: #6c7086; border: none; border-bottom: 2px solid transparent; padding: 10px 12px; font-size: 12px; font-weight: 500; min-width: 80px; }
+QTabBar::tab { background-color: #181825; color: #6c7086; border: none; border-bottom: 2px solid transparent; padding: 10px 12px; font-size: 12px; font-weight: 500; min-width: 120px; }
 QTabBar::tab:selected { color: #89b4fa; border-bottom-color: #89b4fa; }
 QTabBar::tab:hover { color: #cdd6f4; background-color: #1e1e2e; }
 
@@ -229,7 +229,7 @@ QListWidget::item:selected, QListView::item:selected { background-color: #e6e9ef
 
 /* --- Вкладки --- */
 QTabWidget::pane { border: 1px solid #ccd0da; border-radius: 8px; background-color: #eff1f5; }
-QTabBar::tab { background-color: #e6e9ef; color: #9ca0b0; border: none; border-bottom: 2px solid transparent; padding: 10px 12px; font-size: 12px; font-weight: 500; min-width: 80px; }
+QTabBar::tab { background-color: #e6e9ef; color: #9ca0b0; border: none; border-bottom: 2px solid transparent; padding: 10px 12px; font-size: 12px; font-weight: 500; min-width: 120px; }
 QTabBar::tab:selected { color: #1e66f5; border-bottom-color: #1e66f5; }
 QTabBar::tab:hover { color: #4c4f69; background-color: #eff1f5; }
 
