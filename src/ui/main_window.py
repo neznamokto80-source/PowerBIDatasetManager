@@ -12,9 +12,10 @@ from PyQt5.QtWidgets import (
     QTableWidgetItem, QDialog, QFormLayout, QLabel, QPushButton, QTextEdit
 )
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal
+from PyQt5.QtGui import QBrush
 
 from src.ui.ui_components import UIComponents
-from src.ui.theme_colors import apply_theme_to_app, get_active_theme
+from src.ui.theme_colors import ThemeColors, apply_theme_to_app, get_active_theme
 from src.ui.themes import THEMES
 
 # Импорт классов операций (после рефакторинга)
@@ -392,6 +393,15 @@ class PowerBIMonitorUI(QMainWindow):
             
             # Сохраняем полные данные отчета в userData для доступа при двойном клике
             table.item(row, 0).setData(Qt.UserRole, report)
+
+            # Цветовое выделение строки отчёта PBIRS
+            background_color = ThemeColors.get_pbirs_background_color(report, self.current_theme)
+            if background_color:
+                brush = QBrush(background_color)
+                for col in range(table.columnCount()):
+                    item = table.item(row, col)
+                    if item:
+                        item.setBackground(brush)
         
         # Автоматически подгоняем ширину колонок
         #table.resizeColumnsToContents()

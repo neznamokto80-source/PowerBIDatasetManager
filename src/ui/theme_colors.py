@@ -104,6 +104,48 @@ class ThemeColors:
         # 5. Все остальные случаи — без подсветки
         return None
 
+    @staticmethod
+    def get_pbirs_background_color(report, theme="Светлая"):
+        """
+        Возвращает цвет фона для отчёта Power BI Report Server (строка в таблице).
+
+        Логика приоритета:
+          1. Ошибка последнего обновления (LastStatus содержит error/failed/ошибку) -> красный
+          2. Нет настроенного обновления (нет расписаний / следующее не запланировано) -> жёлтый
+          3. Все остальные случаи -> None (без подсветки)
+
+        Args:
+            report: Словарь с информацией об отчёте PBIRS
+                (ключи: LastStatus, RefreshPlansList, RefreshPlansDetails, NextRunDisplay).
+            theme: Имя темы ("Тёмная"/"Светлая").
+
+        Returns:
+            QColor или None.
+        """
+        # 1. Сначала ошибки (красный)
+        last_status = str(report.get('LastStatus', '') or '').lower()
+        if ('error' in last_status or 'failed' in last_status
+                or 'ошибк' in last_status or 'неудач' in last_status):
+            return ThemeColors.get_error_color(theme)
+
+        # 2. Проверяем наличие настроенного обновления (расписаний)
+        refresh_plans = report.get('RefreshPlansList')
+        if isinstance(refresh_plans, str):
+            import json
+            try:
+                refresh_plans = json.loads(refresh_plans)
+            except Exception:
+                refresh_plans = []
+        has_schedule = bool(refresh_plans) if isinstance(refresh_plans, list) else False
+
+        # Дополнительно проверяем через NextRunDisplay как резервный индикатор
+        next_run = str(report.get('NextRunDisplay', '') or '').strip().lower()
+        if not has_schedule and (not next_run or next_run == 'не запланировано'):
+            return ThemeColors.get_not_scheduled_color(theme)
+
+        # 3. Все остальные случаи — без подсветки
+        return None
+
 
 def get_active_theme():
     """

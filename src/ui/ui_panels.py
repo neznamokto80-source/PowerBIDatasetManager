@@ -548,16 +548,28 @@ class UIPanels:
         ])
         # Настройка ширины колонок
         header = self.main.pbirs_reports_table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)  # Папка
-        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)  # Название отчета
-        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)    # Размер (МБ)
-        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)    # Тип отчета
-        header.setSectionResizeMode(4, QHeaderView.Stretch)  # Источники данных
-        header.setSectionResizeMode(5, QHeaderView.Stretch)  # Последний статус
-        header.setSectionResizeMode(6, QHeaderView.ResizeToContents)    # Последнее обновление
-        header.setSectionResizeMode(7, QHeaderView.ResizeToContents)    # Следующее обновление
+        # Динамическая ширина (растягиваются) с переносом текста:
+        #   0 - Папка, 1 - Название отчета, 4 - Источники данных
+        header.setSectionResizeMode(0, QHeaderView.Stretch)
+        header.setSectionResizeMode(1, QHeaderView.Stretch)
+        header.setSectionResizeMode(4, QHeaderView.Stretch)
+        # Статичная ширина по содержимому/заголовку для остальных колонок
+        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)  # Размер (МБ)
+        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)  # Тип отчета
+        header.setSectionResizeMode(5, QHeaderView.ResizeToContents)  # Последний статус
+        header.setSectionResizeMode(6, QHeaderView.ResizeToContents)  # Последнее обновление
+        header.setSectionResizeMode(7, QHeaderView.ResizeToContents)  # Следующее обновление
         header.setStretchLastSection(False)
-        
+
+        # Автоперенос текста в ячейках (как в Excel), чтобы динамические колонки
+        # всегда полностью отображали содержимое
+        self.main.pbirs_reports_table.setWordWrap(True)
+        self.main.pbirs_reports_table.setTextElideMode(Qt.ElideNone)
+        # Вертикальное выравнивание по центру для многострочных ячеек
+        self.main.pbirs_reports_table.verticalHeader().setDefaultSectionSize(
+            self.main.pbirs_reports_table.verticalHeader().defaultSectionSize() * 2
+        )
+
         self.main.pbirs_reports_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.main.pbirs_reports_table.setSelectionMode(QAbstractItemView.ExtendedSelection)
         # Подключаем обработчик двойного клика
@@ -641,14 +653,27 @@ class UIPanels:
         ])
         # Настройка ширины колонок
         header = self.main.pbirs_sources_table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)  # Папка
-        header.setSectionResizeMode(1, QHeaderView.Stretch)  # Название отчета
-        header.setSectionResizeMode(2, QHeaderView.Stretch)  # ConnectionString
+        # Динамическая ширина (растягиваются) с переносом текста:
+        #   0 - Папка, 1 - Название отчета, 2 - Источник
+        header.setSectionResizeMode(0, QHeaderView.Stretch)
+        header.setSectionResizeMode(1, QHeaderView.Stretch)
+        header.setSectionResizeMode(2, QHeaderView.Stretch)
+        # Статичная ширина по содержимому/заголовку для остальных колонок
         header.setSectionResizeMode(3, QHeaderView.ResizeToContents)  # Тип (Kind)
         header.setSectionResizeMode(4, QHeaderView.ResizeToContents)  # Дата изменения
         header.setSectionResizeMode(5, QHeaderView.ResizeToContents)  # Пользователь
         header.setSectionResizeMode(6, QHeaderView.ResizeToContents)  # Следующее обновление
-        
+        header.setStretchLastSection(False)
+
+        # Автоперенос текста в ячейках (как в Excel), чтобы динамические колонки
+        # всегда полностью отображали содержимое
+        self.main.pbirs_sources_table.setWordWrap(True)
+        self.main.pbirs_sources_table.setTextElideMode(Qt.ElideNone)
+        # Вертикальное выравнивание по центру для многострочных ячеек
+        self.main.pbirs_sources_table.verticalHeader().setDefaultSectionSize(
+            self.main.pbirs_sources_table.verticalHeader().defaultSectionSize() * 2
+        )
+
         self.main.pbirs_sources_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.main.pbirs_sources_table.setSelectionMode(QAbstractItemView.ExtendedSelection)
         # Подключаем сортировку по двойному клику на заголовок колонки
