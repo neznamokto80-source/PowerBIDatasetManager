@@ -6,7 +6,7 @@
 
 import logging
 
-from PyQt6.QtWidgets import QMessageBox, QInputDialog
+from PyQt5.QtWidgets import QMessageBox, QInputDialog
 
 from src.core.dependencies import DependencyManager
 from src.core.powerbi_report_server_client import PowerBIReportServerClient

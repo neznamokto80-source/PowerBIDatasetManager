@@ -22,11 +22,9 @@ if %errorlevel% neq 0 (
     pip install pyinstaller
 )
 
-:: 2. Установка зависимостей (если есть requirements.txt)
-if exist requirements.txt (
-    echo [PKG] Установка зависимостей...
-    pip install -r requirements.txt
-)
+:: 2. Установка зависимостей (из pyproject.toml)
+echo [PKG] Установка зависимостей...
+python -m pip install -e .
 
 :: 3. Очистка предыдущих сборок
 echo [CLEAN] Очистка временных файлов...
@@ -39,10 +37,10 @@ echo [BUILD] Компиляция...
 python -m PyInstaller --onefile ^
     --name "%OUTPUT_NAME%" ^
     --console ^
-    --hidden-import PyQt6 ^
-    --hidden-import PyQt6.QtCore ^
-    --hidden-import PyQt6.QtGui ^
-    --hidden-import PyQt6.QtWidgets ^
+    --hidden-import PyQt5 ^
+    --hidden-import PyQt5.QtCore ^
+    --hidden-import PyQt5.QtGui ^
+    --hidden-import PyQt5.QtWidgets ^
     --hidden-import azure.identity ^
     --hidden-import msal ^
     --hidden-import requests ^

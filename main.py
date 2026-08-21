@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Точка входа приложения Power BI Dataset Monitor & Manager.
-Запускает графический интерфейс на основе PyQt6.
+Запускает графический интерфейс на основе PyQt5 (тема Catppuccin).
 """
 
 import sys
@@ -27,7 +27,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 def ensure_dependencies():
     """Проверяет и устанавливает необходимые пакеты без перезапуска процесса."""
     required_packages = [
-        "PyQt6",
+        "PyQt5",
         "azure-identity",
         "azure-core",
         "msal",
@@ -36,10 +36,10 @@ def ensure_dependencies():
     ]
     missing = []
     for package in required_packages:
-        # Пробуем импортировать (для PyQt6 особый случай)
-        if package == "PyQt6":
+        # Пробуем импортировать (для PyQt5 особый случай)
+        if package == "PyQt5":
             try:
-                __import__("PyQt6")
+                __import__("PyQt5")
             except ImportError:
                 missing.append(package)
         else:
@@ -80,15 +80,18 @@ if not ensure_dependencies():
     input("Нажмите Enter для выхода...")
     sys.exit(1)
 
-# Теперь можно импортировать PyQt6 и остальные модули
-from PyQt6.QtWidgets import QApplication
+# Теперь можно импортировать PyQt5 и остальные модули
+from PyQt5.QtWidgets import QApplication
 from src.ui.main_window import PowerBIMonitorUI
+from src.ui.theme_colors import apply_theme_to_app
+from src.ui.themes import DEFAULT_THEME_NAME
 
 
 def main():
     """Точка входа в приложение."""
     app = QApplication(sys.argv)
-    app.setStyle("Fusion")
+    # Применяем тему по умолчанию (Catppuccin) до создания окна
+    apply_theme_to_app(DEFAULT_THEME_NAME)
     window = PowerBIMonitorUI()
     window.show()
     sys.exit(app.exec())

@@ -8,13 +8,12 @@
 import logging
 from datetime import datetime, timedelta
 
-from PyQt6.QtWidgets import (
+from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTreeWidgetItem,
     QMenu, QFormLayout, QGroupBox, QTextEdit, QTableWidgetItem, QHeaderView,
-    QMessageBox
+    QMessageBox, QAction
 )
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QAction
+from PyQt5.QtCore import Qt, QTimer
 
 from ..ui.dataset_details_dialog import DatasetDetailsDialog
 
@@ -267,7 +266,7 @@ class UIOperations:
             index = combo.currentIndex()
             if index >= 0:
                 # Пытаемся получить полный ConnectionString из userData
-                full_connection = combo.itemData(index, Qt.ItemDataRole.UserRole)
+                full_connection = combo.itemData(index, Qt.UserRole)
                 if full_connection and isinstance(full_connection, str):
                     source_filter = full_connection.strip()
                 else:
@@ -637,7 +636,7 @@ class UIOperations:
 
         close_btn = QPushButton("Закрыть")
         close_btn.clicked.connect(dialog.accept)
-        layout.addWidget(close_btn, alignment=Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(close_btn, alignment=Qt.AlignCenter)
 
         dialog.exec()
     
@@ -738,7 +737,7 @@ class UIOperations:
             table.setItem(row, 4, QTableWidgetItem(next_run_str))
 
             # Сохраняем объект плана в userData первой ячейки
-            table.item(row, 0).setData(Qt.ItemDataRole.UserRole, plan)
+            table.item(row, 0).setData(Qt.UserRole, plan)
 
         # Размеры колонок заданы в ui_panels.py при создании таблицы
         self.main_window.log_message(f"Загружено расписаний: {len(refresh_plans)}")
@@ -945,7 +944,7 @@ class UIOperations:
             )
             
             # Создаём кастомный диалог с кнопками "Закрыть" и "Перейти к заполнению"
-            from PyQt6.QtWidgets import QDialogButtonBox
+            from PyQt5.QtWidgets import QDialogButtonBox
             dialog = QMessageBox(self.main_window)
             dialog.setWindowTitle("Внимание: отсутствуют учётные данные")
             dialog.setIcon(QMessageBox.Icon.Warning)
@@ -1083,7 +1082,7 @@ class UIOperations:
             self.main_window.log_message("✗ Не удалось получить данные расписания")
             return
         
-        plan = plan_item.data(Qt.ItemDataRole.UserRole)
+        plan = plan_item.data(Qt.UserRole)
         if not plan:
             self.main_window.log_message("✗ Не удалось получить данные расписания")
             return
@@ -1138,7 +1137,7 @@ class UIOperations:
             self.main_window.log_message("✗ Не удалось получить данные расписания")
             return
 
-        plan = plan_item.data(Qt.ItemDataRole.UserRole)
+        plan = plan_item.data(Qt.UserRole)
         if not plan:
             self.main_window.log_message("✗ Не удалось получить данные расписания")
             return

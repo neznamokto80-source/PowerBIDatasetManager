@@ -25,7 +25,7 @@ class DependencyManager:
         ("msal", "msal"),
         ("requests", "requests"),
         ("python-dateutil", "dateutil"),
-        ("PyQt6", "PyQt6"),
+        ("PyQt5", "PyQt5"),
         ("requests_ntlm", "requests_ntlm"),
     ]
     

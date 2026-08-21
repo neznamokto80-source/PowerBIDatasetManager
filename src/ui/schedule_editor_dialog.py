@@ -7,7 +7,7 @@
 import re
 from typing import Any, Dict, List, Optional, Set
 
-from PyQt6.QtWidgets import (
+from PyQt5.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDialog,
@@ -248,10 +248,10 @@ class ScheduleEditorDialog(QDialog):
             "Удаление расписания",
             "Отключить запланированное обновление для этого датасета?\n"
             "(В Power BI будет выключено автообновление по расписанию.)",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
         )
-        if reply != QMessageBox.StandardButton.Yes:
+        if reply != QMessageBox.Yes:
             return
         self._result_action = self.ACTION_DELETE
         self.accept()

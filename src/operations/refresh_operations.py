@@ -8,8 +8,8 @@
 import logging
 from typing import Any, Dict, Optional
 
-from PyQt6.QtWidgets import QMessageBox, QDialog
-from PyQt6.QtCore import QTimer
+from PyQt5.QtWidgets import QMessageBox, QDialog
+from PyQt5.QtCore import QTimer
 
 from src.core.powerbi_client import APIRequestError
 

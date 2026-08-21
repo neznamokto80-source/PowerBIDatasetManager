@@ -50,8 +50,8 @@ class UIComponents:
             return self.panels.create_right_panel()
         else:
             # Заглушка - возвращаем пустой виджет
-            from PyQt6.QtWidgets import QWidget
-            QWidget()
+            from PyQt5.QtWidgets import QWidget
+            return QWidget()
     
     def create_logs_panel(self):
         """Создает панель логов для правой стороны."""
@@ -60,7 +60,7 @@ class UIComponents:
             return self.panels.create_logs_panel()
         else:
             # Заглушка - возвращаем пустой виджет
-            from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel
+            from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel
             panel = QWidget()
             layout = QVBoxLayout(panel)
             layout.addWidget(QLabel("Логи (метод create_logs_panel не найден)"))

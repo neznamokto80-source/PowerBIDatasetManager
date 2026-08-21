@@ -6,7 +6,7 @@
 
 import logging
 
-from PyQt6.QtWidgets import QMessageBox
+from PyQt5.QtWidgets import QMessageBox
 
 from src.core.dependencies import DependencyManager
 from src.core.powerbi_client import PowerBIClient

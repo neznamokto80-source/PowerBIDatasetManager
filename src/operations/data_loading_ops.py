@@ -7,8 +7,8 @@
 import logging
 from datetime import datetime, timedelta
 
-from PyQt6.QtWidgets import QTableWidgetItem, QTreeWidgetItem
-from PyQt6.QtGui import QBrush
+from PyQt5.QtWidgets import QTableWidgetItem, QTreeWidgetItem
+from PyQt5.QtGui import QBrush
 
 from src.operations.refresh_operations import ProgressManager
 from src.operations.base_operations import BaseOperations
@@ -214,7 +214,7 @@ class DataLoadingMethods(BaseOperations):
                 # Обновляем статус-бар
                 self.main_window.status_bar.showMessage(f"Загрузка: {percent}%")
                 # Принудительно обрабатываем события UI
-                from PyQt6.QtWidgets import QApplication
+                from PyQt5.QtWidgets import QApplication
                 QApplication.processEvents()
             
             # Используем integration для получения обогащенных данных с отслеживанием прогресса

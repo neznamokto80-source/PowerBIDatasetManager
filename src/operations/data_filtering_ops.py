@@ -11,8 +11,8 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
-from PyQt6.QtWidgets import QTreeWidgetItem
-from PyQt6.QtGui import QBrush
+from PyQt5.QtWidgets import QTreeWidgetItem
+from PyQt5.QtGui import QBrush
 
 from src.ui.theme_colors import ThemeColors
 from src.operations.base_operations import BaseOperations

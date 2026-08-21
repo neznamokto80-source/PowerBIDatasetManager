@@ -1,7 +1,7 @@
 # Power BI Dataset Monitor & Manager
 
 [![Python Version](https://img.shields.io/badge/python-3.8+-blue.svg)](https://python.org)
-[![PyQt6](https://img.shields.io/badge/PyQt6-6.0+-green.svg)](https://riverbankcomputing.com/software/pyqt/)
+[![PyQt5](https://img.shields.io/badge/PyQt5-5.15+-green.svg)](https://riverbankcomputing.com/software/pyqt/)
 
 Приложение для мониторинга и управления датасетами Microsoft Power BI Service, а также отчётами Power BI Report Server (PBIRS).
 
@@ -36,7 +36,8 @@
 
 - **Python** 3.8 или выше
 - **Библиотеки** (устанавливаются автоматически при первом запуске):
-  - `azure-identity`, `msal`, `requests`, `requests_ntlm`, `PyQt6`, `python-dateutil`
+  - `azure-identity`, `msal`, `requests`, `requests_ntlm`, `PyQt5`, `python-dateutil`
+  - Зависимости объявлены в `pyproject.toml` (`pip install -e .`)
 
 ## 🛠 Установка и запуск
 

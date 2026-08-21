@@ -10,8 +10,8 @@ import os
 import traceback
 from typing import List, Dict, Any, Optional
 
-from PyQt6.QtWidgets import QMessageBox, QFileDialog, QInputDialog
-from PyQt6.QtCore import Qt
+from PyQt5.QtWidgets import QMessageBox, QFileDialog, QInputDialog
+from PyQt5.QtCore import Qt
 
 from src.core.powerbi_report_server_client import PowerBIReportServerClient
 from src.core.connection_manager import ConnectionManager
@@ -89,7 +89,7 @@ class PBIRSOperations(BaseOperations):
     
     def connect_to_powerbi_report_server(self):
         """Подключение к Power BI Report Server с запросом параметров."""
-        from PyQt6.QtWidgets import QInputDialog, QLineEdit
+        from PyQt5.QtWidgets import QInputDialog, QLineEdit
         
         # Запрашиваем URL сервера
         server_url, ok = QInputDialog.getText(
@@ -261,7 +261,7 @@ class PBIRSOperations(BaseOperations):
                         display_string = display_string[:97] + '...'
                     combo.addItem(display_string)
                     # Сохраняем полный ConnectionString в userData
-                    combo.setItemData(combo.count() - 1, conn_string, Qt.ItemDataRole.UserRole)
+                    combo.setItemData(combo.count() - 1, conn_string, Qt.UserRole)
                 self.main_window.log_message(f"  Заполнен фильтр источников данных: {len(unique_connections)} уникальных значений")
             
             # Заполняем комбобокс фильтра пользователей уникальными значениями

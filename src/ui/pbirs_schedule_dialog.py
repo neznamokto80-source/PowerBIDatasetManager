@@ -7,7 +7,7 @@
 
 from typing import Dict, Any, List, Optional
 
-from PyQt6.QtWidgets import (
+from PyQt5.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDialog,

@@ -7,14 +7,15 @@
 
 import logging
 
-from PyQt6.QtWidgets import (
+from PyQt5.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QSplitter, QStatusBar,
     QTableWidgetItem, QDialog, QFormLayout, QLabel, QPushButton, QTextEdit
 )
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal
+from PyQt5.QtCore import Qt, QTimer, pyqtSignal
 
 from src.ui.ui_components import UIComponents
-from src.ui.theme_colors import apply_theme_to_app
+from src.ui.theme_colors import apply_theme_to_app, get_active_theme
+from src.ui.themes import THEMES
 
 # Импорт классов операций (после рефакторинга)
 from src.core.connection import ConnectionMethods
@@ -51,7 +52,8 @@ class PowerBIMonitorUI(QMainWindow):
         self.workspaces = []
         self.datasets = []
         self.auto_refresh_enabled = False  # Флаг автообновления
-        self.current_theme = "Светлая"  # Текущая тема интерфейса
+        # Текущая тема интерфейса (имя темы; по умолчанию — тёмная Catppuccin Mocha)
+        self.current_theme = list(THEMES.keys())[0]
         self.current_mode = None  # 'service' или 'server'
         self.debug_data_path = None  # Путь для сохранения сырых логов
         
@@ -133,7 +135,10 @@ class PowerBIMonitorUI(QMainWindow):
         """Инициализация пользовательского интерфейса."""
         self.setWindowTitle("Power BI Dataset Monitor & Manager")
         self.setGeometry(100, 100, 1400, 800)
-        
+
+        # Применяем текущую тему оформления (Catppuccin)
+        apply_theme_to_app(self.current_theme)
+
         # Центральный виджет
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -146,10 +151,10 @@ class PowerBIMonitorUI(QMainWindow):
         main_layout.addWidget(button_panel)
         
         # Вертикальный разделитель для основной области и логов
-        vertical_splitter = QSplitter(Qt.Orientation.Vertical)
-        
+        vertical_splitter = QSplitter(Qt.Vertical)
+
         # Горизонтальный разделитель для левой и центральной панели
-        horizontal_splitter = QSplitter(Qt.Orientation.Horizontal)
+        horizontal_splitter = QSplitter(Qt.Horizontal)
         
         # Левая панель (навигация)
         left_panel = self.ui_components.create_left_panel()
@@ -386,7 +391,7 @@ class PowerBIMonitorUI(QMainWindow):
             table.setItem(row, 7, QTableWidgetItem(next_run_display))
             
             # Сохраняем полные данные отчета в userData для доступа при двойном клике
-            table.item(row, 0).setData(Qt.ItemDataRole.UserRole, report)
+            table.item(row, 0).setData(Qt.UserRole, report)
         
         # Автоматически подгоняем ширину колонок
         #table.resizeColumnsToContents()
@@ -605,16 +610,16 @@ class PowerBIMonitorUI(QMainWindow):
         
         state = self._pbirs_sort_states.get(table_key, {})
         prev_col = state.get('column')
-        prev_order = state.get('order', Qt.SortOrder.AscendingOrder)
+        prev_order = state.get('order', Qt.AscendingOrder)
         
         if prev_col == column:
             # Та же колонка — инвертируем порядок
-            new_order = (Qt.SortOrder.DescendingOrder
-                         if prev_order == Qt.SortOrder.AscendingOrder
-                         else Qt.SortOrder.AscendingOrder)
+            new_order = (Qt.DescendingOrder
+                         if prev_order == Qt.AscendingOrder
+                         else Qt.AscendingOrder)
         else:
             # Другая колонка — сортируем по возрастанию
-            new_order = Qt.SortOrder.AscendingOrder
+            new_order = Qt.AscendingOrder
         
         self._pbirs_sort_states[table_key] = {'column': column, 'order': new_order}
         table.sortItems(column, new_order)
@@ -780,7 +785,7 @@ class PowerBIMonitorUI(QMainWindow):
         if not item:
             return
         
-        report_data = item.data(Qt.ItemDataRole.UserRole)
+        report_data = item.data(Qt.UserRole)
         if not report_data:
             return
         
@@ -1011,7 +1016,9 @@ class PowerBIMonitorUI(QMainWindow):
             state: Состояние чекбокса (0 - выключено/светлая, 2 - включено/тёмная)
         """
         dark_enabled = state == 2  # Qt.Checked == 2
-        new_theme = "Тёмная" if dark_enabled else "Светлая"
+        theme_names = list(THEMES.keys())
+        # Индексируем: [0] - тёмная (первая), [1] - светлая
+        new_theme = theme_names[0] if dark_enabled else theme_names[-1]
         self.current_theme = new_theme
         apply_theme_to_app(new_theme)
         self.log_message(f"Тема изменена на '{new_theme}'")

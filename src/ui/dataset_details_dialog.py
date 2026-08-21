@@ -8,13 +8,13 @@
 from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
 
-from PyQt6.QtWidgets import (
+from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QGridLayout, QFormLayout,
     QGroupBox, QLabel, QPushButton, QCheckBox, QComboBox,
     QListWidget, QFrame, QSizePolicy, QWidget
 )
-from PyQt6.QtCore import Qt, QSize
-from PyQt6.QtGui import QFont
+from PyQt5.QtCore import Qt, QSize
+from PyQt5.QtGui import QFont
 
 DAY_LABELS_RU = [
     "Воскресенье", "Понедельник", "Вторник", "Среда",
@@ -71,7 +71,7 @@ class DatasetDetailsDialog(QDialog):
         # Кнопки диалога (Закрыть)
         close_btn = QPushButton("Закрыть")
         close_btn.clicked.connect(self.accept)
-        main_layout.addWidget(close_btn, alignment=Qt.AlignmentFlag.AlignCenter)
+        main_layout.addWidget(close_btn, alignment=Qt.AlignCenter)
 
         # Загружаем данные расписания в UI
         self._load_schedule_to_ui()

@@ -14,9 +14,9 @@
 pip install requests_ntlm2>=0.2.0
 ```
 
-Все зависимости указаны в файле `requirements.txt`:
+Все зависимости объявлены в `pyproject.toml`:
 ```bash
-pip install -r requirements.txt
+pip install -e .
 ```
 
 ## Подключение к Power BI Report Server

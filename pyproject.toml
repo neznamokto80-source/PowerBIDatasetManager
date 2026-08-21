@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "powerbi-dataset-manager"
+version = "1.0.0"
+description = "Power BI Dataset Monitor & Manager — мониторинг и управление обновлением датасетов Power BI Service и Power BI Report Server"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [
+    { name = "PowerBI Dataset Manager" }
+]
+
+# Основные зависимости
+dependencies = [
+    "PyQt5>=5.15.0",
+    "requests>=2.31.0",
+    "python-dateutil>=2.8.2",
+
+    # Для Power BI Service (облако)
+    "azure-identity>=1.12.0",
+    "azure-core>=1.28.0",
+    "msal>=1.24.0",
+
+    # Для Power BI Report Server (локальный сервер)
+    "requests_ntlm>=1.3.0",
+]
+
+[project.optional-dependencies]
+# Утилиты для разработки
+dev = [
+    "black>=23.0.0",
+    "pytest>=7.0.0",
+    "pyinstaller>=5.0.0",
+]
+
+[tool.setuptools]
+packages = ["src"]
+
+[tool.setuptools.package-dir]
+"" = "."
+
+[tool.black]
+line-length = 100
+target-version = ['py38']
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

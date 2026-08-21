@@ -5,15 +5,15 @@
 Содержит методы создания левой, центральной панелей и вкладок.
 """
 
-from PyQt6.QtWidgets import (
+from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QComboBox,
     QGroupBox, QTreeWidget, QCheckBox, QRadioButton, QTableWidget, QHeaderView,
     QAbstractItemView, QTabWidget, QTextEdit, QFormLayout,
     QProgressBar, QLineEdit, QListWidget, QGridLayout, QFrame,
     QSizePolicy
 )
-from PyQt6.QtCore import Qt, QSize
-from PyQt6.QtGui import QFont, QColor
+from PyQt5.QtCore import Qt, QSize
+from PyQt5.QtGui import QFont, QColor
 
 
 from .widgets import (
@@ -228,7 +228,7 @@ class UIPanels:
             label.setStyleSheet("font-weight: bold; padding: 2px 8px;")
             stats_layout.addWidget(label)
         
-        self.main.tab_widget.setCornerWidget(self.main.pbirs_stats_widget, Qt.Corner.TopRightCorner)
+        self.main.tab_widget.setCornerWidget(self.main.pbirs_stats_widget, Qt.TopRightCorner)
         self.main.pbirs_stats_widget.setVisible(False)  # По умолчанию скрыт
         
         layout.addWidget(self.main.tab_widget)
@@ -278,18 +278,18 @@ class UIPanels:
         # Скрыть столбец ID датасета
         self.main.dataset_table.setColumnHidden(2, True)
         # Настройка ширины колонок: колонка статуса уже
-        self.main.dataset_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        self.main.dataset_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        self.main.dataset_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
-        self.main.dataset_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
-        self.main.dataset_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)
-        self.main.dataset_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.Stretch)
-        self.main.dataset_table.horizontalHeader().setSectionResizeMode(6, QHeaderView.ResizeMode.Stretch)
-        self.main.dataset_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
-        self.main.dataset_table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        self.main.dataset_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
+        self.main.dataset_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+        self.main.dataset_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
+        self.main.dataset_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.Stretch)
+        self.main.dataset_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.Stretch)
+        self.main.dataset_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.Stretch)
+        self.main.dataset_table.horizontalHeader().setSectionResizeMode(6, QHeaderView.Stretch)
+        self.main.dataset_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.main.dataset_table.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.main.dataset_table.itemDoubleClicked.connect(self.main.on_dataset_double_clicked)
         # Контекстное меню
-        self.main.dataset_table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.main.dataset_table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.main.dataset_table.customContextMenuRequested.connect(self.main.show_context_menu)
         
         layout.addWidget(self.main.dataset_table)
@@ -380,8 +380,8 @@ class UIPanels:
         
         # Разделитель в виде вертикальной линии
         separator = QFrame()
-        separator.setFrameShape(QFrame.Shape.VLine)
-        separator.setFrameShadow(QFrame.Shadow.Sunken)
+        separator.setFrameShape(QFrame.VLine)
+        separator.setFrameShadow(QFrame.Sunken)
         separator.setLineWidth(1)
         separator.setMidLineWidth(0)
         separator.setFixedWidth(3)
@@ -431,8 +431,8 @@ class UIPanels:
         
         # Список времени в две колонки
         self.main.schedule_times_list = QListWidget()
-        self.main.schedule_times_list.setViewMode(QListWidget.ViewMode.IconMode)
-        self.main.schedule_times_list.setFlow(QListWidget.Flow.LeftToRight)
+        self.main.schedule_times_list.setViewMode(QListWidget.IconMode)
+        self.main.schedule_times_list.setFlow(QListWidget.LeftToRight)
         self.main.schedule_times_list.setWrapping(True)
         self.main.schedule_times_list.setGridSize(QSize(80, 25))
         self.main.schedule_times_list.setFixedHeight(180)  # 6 строк * 30 высота
@@ -548,18 +548,18 @@ class UIPanels:
         ])
         # Настройка ширины колонок
         header = self.main.pbirs_reports_table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)  # Папка
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)  # Название отчета
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)    # Размер (МБ)
-        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)    # Тип отчета
-        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)  # Источники данных
-        header.setSectionResizeMode(5, QHeaderView.ResizeMode.Stretch)  # Последний статус
-        header.setSectionResizeMode(6, QHeaderView.ResizeMode.ResizeToContents)    # Последнее обновление
-        header.setSectionResizeMode(7, QHeaderView.ResizeMode.ResizeToContents)    # Следующее обновление
+        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)  # Папка
+        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)  # Название отчета
+        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)    # Размер (МБ)
+        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)    # Тип отчета
+        header.setSectionResizeMode(4, QHeaderView.Stretch)  # Источники данных
+        header.setSectionResizeMode(5, QHeaderView.Stretch)  # Последний статус
+        header.setSectionResizeMode(6, QHeaderView.ResizeToContents)    # Последнее обновление
+        header.setSectionResizeMode(7, QHeaderView.ResizeToContents)    # Следующее обновление
         header.setStretchLastSection(False)
         
-        self.main.pbirs_reports_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
-        self.main.pbirs_reports_table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        self.main.pbirs_reports_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.main.pbirs_reports_table.setSelectionMode(QAbstractItemView.ExtendedSelection)
         # Подключаем обработчик двойного клика
         self.main.pbirs_reports_table.doubleClicked.connect(self.main.on_pbirs_report_double_clicked)
         # Подключаем сортировку по двойному клику на заголовок колонки
@@ -641,16 +641,16 @@ class UIPanels:
         ])
         # Настройка ширины колонок
         header = self.main.pbirs_sources_table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)  # Папка
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)  # Название отчета
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)  # ConnectionString
-        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)  # Тип (Kind)
-        header.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)  # Дата изменения
-        header.setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)  # Пользователь
-        header.setSectionResizeMode(6, QHeaderView.ResizeMode.ResizeToContents)  # Следующее обновление
+        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)  # Папка
+        header.setSectionResizeMode(1, QHeaderView.Stretch)  # Название отчета
+        header.setSectionResizeMode(2, QHeaderView.Stretch)  # ConnectionString
+        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)  # Тип (Kind)
+        header.setSectionResizeMode(4, QHeaderView.ResizeToContents)  # Дата изменения
+        header.setSectionResizeMode(5, QHeaderView.ResizeToContents)  # Пользователь
+        header.setSectionResizeMode(6, QHeaderView.ResizeToContents)  # Следующее обновление
         
-        self.main.pbirs_sources_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
-        self.main.pbirs_sources_table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        self.main.pbirs_sources_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.main.pbirs_sources_table.setSelectionMode(QAbstractItemView.ExtendedSelection)
         # Подключаем сортировку по двойному клику на заголовок колонки
         self.main.pbirs_sources_table.horizontalHeader().sectionDoubleClicked.connect(
             lambda col: self.main.sort_pbirs_table('sources', col)
@@ -670,7 +670,7 @@ class UIPanels:
         self.main.history_table.setHorizontalHeaderLabels([
             "Время начала", "Время окончания", "Статус", "Тип", "Длительность"
         ])
-        self.main.history_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.main.history_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         
         layout.addWidget(self.main.history_table)
         return tab
@@ -712,54 +712,54 @@ class UIPanels:
         # Левая колонка
         left_form = QFormLayout()
         self.main.pbirs_detail_name = QLabel("-")
-        self.main.pbirs_detail_name.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.main.pbirs_detail_name.setTextInteractionFlags(Qt.TextSelectableByMouse)
         left_form.addRow("Название:", self.main.pbirs_detail_name)
         self.main.pbirs_detail_id = QLabel("-")
-        self.main.pbirs_detail_id.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.main.pbirs_detail_id.setTextInteractionFlags(Qt.TextSelectableByMouse)
         left_form.addRow("PowerBIReport ID:", self.main.pbirs_detail_id)
         self.main.pbirs_detail_folder = QLabel("-")
-        self.main.pbirs_detail_folder.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.main.pbirs_detail_folder.setTextInteractionFlags(Qt.TextSelectableByMouse)
         left_form.addRow("Расположение отчета:", self.main.pbirs_detail_folder)
         self.main.pbirs_detail_creator = QLabel("-")
-        self.main.pbirs_detail_creator.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.main.pbirs_detail_creator.setTextInteractionFlags(Qt.TextSelectableByMouse)
         left_form.addRow("Создатель:", self.main.pbirs_detail_creator)
         # Новые поля
         self.main.pbirs_detail_created_date = QLabel("-")
-        self.main.pbirs_detail_created_date.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.main.pbirs_detail_created_date.setTextInteractionFlags(Qt.TextSelectableByMouse)
         left_form.addRow("Дата создания:", self.main.pbirs_detail_created_date)
         self.main.pbirs_detail_modified_by = QLabel("-")
-        self.main.pbirs_detail_modified_by.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.main.pbirs_detail_modified_by.setTextInteractionFlags(Qt.TextSelectableByMouse)
         left_form.addRow("Кем изменён:", self.main.pbirs_detail_modified_by)
         self.main.pbirs_detail_modified_date = QLabel("-")
-        self.main.pbirs_detail_modified_date.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.main.pbirs_detail_modified_date.setTextInteractionFlags(Qt.TextSelectableByMouse)
         left_form.addRow("Дата изменения:", self.main.pbirs_detail_modified_date)
         # Правая колонка
         right_form = QFormLayout()
         #self.main.pbirs_detail_sources = QLabel("-")
         #self.main.pbirs_detail_sources.setWordWrap(True)
         self.main.pbirs_detail_sources = QLabel("-")
-        self.main.pbirs_detail_sources.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.main.pbirs_detail_sources.setTextInteractionFlags(Qt.TextSelectableByMouse)
         self.main.pbirs_detail_sources.setWordWrap(True)
-        self.main.pbirs_detail_sources.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.main.pbirs_detail_sources.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         right_form.addRow("Источники данных:", self.main.pbirs_detail_sources)
         #right_form.addRow("Источники данных:", self.main.pbirs_detail_sources)
         self.main.pbirs_detail_refresh_status = QLabel("-")
-        self.main.pbirs_detail_refresh_status.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.main.pbirs_detail_refresh_status.setTextInteractionFlags(Qt.TextSelectableByMouse)
         self.main.pbirs_detail_refresh_status.setWordWrap(True)  # Перенос текста для длинных статусов
         right_form.addRow("Статус обновления:", self.main.pbirs_detail_refresh_status)
         self.main.pbirs_detail_last_refresh = QLabel("-")
-        self.main.pbirs_detail_last_refresh.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.main.pbirs_detail_last_refresh.setTextInteractionFlags(Qt.TextSelectableByMouse)
         right_form.addRow("Последнее обновление:", self.main.pbirs_detail_last_refresh)
         self.main.pbirs_detail_next_refresh = QLabel("-")
-        self.main.pbirs_detail_next_refresh.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.main.pbirs_detail_next_refresh.setTextInteractionFlags(Qt.TextSelectableByMouse)
         right_form.addRow("Следующее обновление:", self.main.pbirs_detail_next_refresh)
         
 
 
         info_layout.addLayout(left_form)
         sep = QFrame()
-        sep.setFrameShape(QFrame.Shape.VLine)
-        sep.setFrameShadow(QFrame.Shadow.Sunken)
+        sep.setFrameShape(QFrame.VLine)
+        sep.setFrameShadow(QFrame.Sunken)
         info_layout.addWidget(sep)
         info_layout.addLayout(right_form)
         # Устанавливаем stretch-факторы для равномерного распределения колонок
@@ -780,17 +780,17 @@ class UIPanels:
         ])
         header = self.main.pbirs_refresh_plans_table.horizontalHeader()
         # Колонки 0, 1, 3 — растягиваются; колонки 2, 4 — фиксированная ширина
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
-        header.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(1, QHeaderView.Stretch)
+        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(3, QHeaderView.Stretch)
+        header.setSectionResizeMode(4, QHeaderView.ResizeToContents)
         header.setStretchLastSection(False)
         self.main.pbirs_refresh_plans_table.verticalHeader().setVisible(False)
-        self.main.pbirs_refresh_plans_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
-        self.main.pbirs_refresh_plans_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.main.pbirs_refresh_plans_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.main.pbirs_refresh_plans_table.setEditTriggers(QTableWidget.NoEditTriggers)
         # Включаем контекстное меню
-        self.main.pbirs_refresh_plans_table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.main.pbirs_refresh_plans_table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.main.pbirs_refresh_plans_table.customContextMenuRequested.connect(
             self.main.show_pbirs_refresh_plans_context_menu
         )
