@@ -106,7 +106,7 @@ def build_exe():
         print(f"\n[OK] Готово! Исполняемый файл: {dest}")
 
         # Очистка временных артефактов
-        clean_build_artifacts()
+        #clean_build_artifacts()
     else:
         print("\n[ОШИБКА] Файл .exe не создан.")
         sys.exit(1)
