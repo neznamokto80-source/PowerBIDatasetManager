@@ -46,6 +46,7 @@ python -m PyInstaller --onefile ^
     --hidden-import azure.identity ^
     --hidden-import msal ^
     --hidden-import requests ^
+    --collect-all ^
     --add-data "src;src" ^
     --clean ^
     "%APP_NAME%.py"
