@@ -44,11 +44,7 @@ python -m PyInstaller --onefile ^
     --hidden-import azure.identity ^
     --hidden-import msal ^
     --hidden-import requests ^
-    --exclude-module spnego ^
-    --exclude-module winkerberos ^
-    --exclude-module kerberos ^
-    --exclude-module gssapi ^
-    --exclude-module sspilib ^
+    --collect-all ^
     --add-data "src;src" ^
     --clean ^
     "%APP_NAME%.py"

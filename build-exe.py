@@ -92,15 +92,6 @@ def build_exe():
         "--hidden-import", "azure.identity",
         "--hidden-import", "msal",
         "--hidden-import", "requests",
-        # Исключаем неиспользуемую Kerberos/Negotiate цепочку:
-        # приложение аутентифицируется через OAuth (облако) и NTLM (PBIRS),
-        # а spnego -> winkerberos требует внешний MIT Kerberos for Windows (KfW),
-        # которого нет на целевых машинах (ошибка "Could not find KfW installation").
-        "--exclude-module", "spnego",
-        "--exclude-module", "winkerberos",
-        "--exclude-module", "kerberos",
-        "--exclude-module", "gssapi",
-        "--exclude-module", "sspilib",
         # Данные: каталог src
         "--add-data", f"src{os.pathsep}src",
         "--clean",
