@@ -17,6 +17,7 @@ from PyQt5.QtGui import QBrush
 from src.ui.ui_components import UIComponents
 from src.ui.theme_colors import ThemeColors, apply_theme_to_app, get_active_theme
 from src.ui.themes import THEMES
+from src.ui.table_export import copy_table_to_clipboard_and_notify
 
 # Импорт классов операций (после рефакторинга)
 from src.core.connection import ConnectionMethods
@@ -60,6 +61,9 @@ class PowerBIMonitorUI(QMainWindow):
         
         # Состояние сортировки для таблиц PBIRS
         self._pbirs_sort_states = {}
+        
+        # Реестр «вкладка → таблица результатов» (заполняется в create_center_panel)
+        self.result_tables = {}
         
         # Инициализация компонентов UI
         self.ui_components = UIComponents(self)
@@ -843,6 +847,74 @@ class PowerBIMonitorUI(QMainWindow):
     def show_pbirs_refresh_plans_context_menu(self, position):
         """Показывает контекстное меню для таблицы расписаний PBIRS."""
         return self.ui_operations.show_pbirs_refresh_plans_context_menu(position)
+    
+    def show_pbirs_reports_context_menu(self, position):
+        """Показывает контекстное меню для таблицы отчётов PBIRS."""
+        return self.ui_operations.show_pbirs_reports_context_menu(position)
+    
+    def show_pbirs_sources_context_menu(self, position):
+        """Показывает контекстное меню для таблицы источников данных PBIRS."""
+        return self.ui_operations.show_pbirs_sources_context_menu(position)
+    
+    def _get_current_pbirs_report(self):
+        """Возвращает данные текущего выбранного отчёта PBIRS (или None)."""
+        table = getattr(self, 'pbirs_reports_table', None)
+        if table is None:
+            return None
+        row = table.currentRow()
+        if row < 0:
+            return None
+        item = table.item(row, 0)
+        if item is None:
+            return None
+        return item.data(Qt.UserRole)
+    
+    def download_pbirs_report(self):
+        """Скачивание выбранного отчёта PBIRS."""
+        report = self._get_current_pbirs_report()
+        if not report:
+            self.log_message("Не выбран отчёт PBIRS")
+            return
+        report_type = report.get('ReportType', 'PowerBIReports')
+        self.pbirs_operations.download_pbirs_report(
+            report.get('Id', ''), report.get('Name', 'Без имени'), report_type
+        )
+    
+    def delete_pbirs_report(self):
+        """Удаление выбранного отчёта PBIRS."""
+        report = self._get_current_pbirs_report()
+        if not report:
+            self.log_message("Не выбран отчёт PBIRS")
+            return
+        report_type = report.get('ReportType', 'PowerBIReports')
+        self.pbirs_operations.delete_pbirs_report(
+            report.get('Id', ''), report.get('Name', 'Без имени'), report_type
+        )
+    
+    def upload_pbirs_report(self):
+        """Загрузка .pbix-отчёта на сервер PBIRS."""
+        return self.pbirs_operations.upload_pbirs_report()
+    
+    def copy_active_table_to_excel(self):
+        """
+        Копирует содержимое активной вкладки результатов в буфер обмена
+        для вставки в Excel (заголовки + данные, только видимые колонки).
+        """
+        tables = getattr(self, 'result_tables', {})
+        current_index = self.tab_widget.currentIndex() if hasattr(self, 'tab_widget') else -1
+        table = tables.get(current_index)
+        
+        if table is None:
+            self.status_bar.showMessage("На этой вкладке нет таблицы результатов", 3000)
+            self.log_message("На этой вкладке нет таблицы результатов — копирование не выполнено")
+            return
+        
+        count = copy_table_to_clipboard_and_notify(table)
+        tab_name = self.tab_widget.tabText(current_index) if hasattr(self, 'tab_widget') else ''
+        if count > 0:
+            self.log_message(f"Скопировано в буфер обмена: {count} строк (вкладка «{tab_name}»)")
+        else:
+            self.log_message("Таблица пуста — скопированы только заголовки")
     
     def show_report_details_dialog(self, report_data):
         """Открывает диалоговое окно с детальной информацией об отчете."""

@@ -16,6 +16,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, QTimer
 
 from ..ui.dataset_details_dialog import DatasetDetailsDialog
+from ..ui.table_export import add_export_menu_items
 
 logger = logging.getLogger(__name__)
 
@@ -612,6 +613,10 @@ class UIOperations:
                 menu.addAction(refresh_action)
                 menu.addAction(details_action)
         
+        # Пункты экспорта в Excel (только для таблицы датасетов, не для дерева)
+        if sender == self.main_window.dataset_table:
+            add_export_menu_items(menu, self.main_window.dataset_table)
+        
         menu.exec(sender.mapToGlobal(position))
     
     # ========== Методы справки ==========
@@ -1204,6 +1209,9 @@ class UIOperations:
             delete_action.triggered.connect(self.main_window.delete_pbirs_schedule)
             menu.addAction(delete_action)
 
+        # Пункты экспорта в Excel
+        add_export_menu_items(menu, table)
+
         menu.exec(table.viewport().mapToGlobal(position))
 
     def show_pbirs_reports_context_menu(self, position):
@@ -1236,4 +1244,17 @@ class UIOperations:
         upload_action.triggered.connect(self.main_window.upload_pbirs_report)
         menu.addAction(upload_action)
         
+        # Пункты экспорта в Excel
+        add_export_menu_items(menu, table)
+        
+        menu.exec(table.viewport().mapToGlobal(position))
+
+    def show_pbirs_sources_context_menu(self, position):
+        """Показывает контекстное меню для таблицы источников данных PBIRS."""
+        table = self.main_window.pbirs_sources_table
+        if table is None:
+            return
+
+        menu = QMenu(self.main_window)
+        add_export_menu_items(menu, table)
         menu.exec(table.viewport().mapToGlobal(position))

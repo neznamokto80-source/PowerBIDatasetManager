@@ -94,7 +94,15 @@ class UIToolbars:
             fixed_height=36,
         )
         layout.addWidget(test_data_btn)
-
+        # Кнопка "Копировать в Excel" — копирует содержимое активной вкладки результатов
+        copy_excel_btn = create_button(
+            "Копировать в Excel",
+            tooltip="Скопировать содержимое активной вкладки результатов в буфер обмена (вставка в Excel)",
+            callback=self.main.copy_active_table_to_excel,
+            fixed_height=36,
+        )
+        layout.addWidget(copy_excel_btn)
+        
         # Кнопка "Справка"
         help_btn = create_button(
             "Справка",

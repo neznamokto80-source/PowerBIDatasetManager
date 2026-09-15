@@ -28,6 +28,7 @@ from .widgets import (
     create_check_box,
     create_tab_widget
 )
+from .table_export import install_table_export
 
 
 class UIPanels:
@@ -231,6 +232,14 @@ class UIPanels:
         self.main.tab_widget.setCornerWidget(self.main.pbirs_stats_widget, Qt.TopRightCorner)
         self.main.pbirs_stats_widget.setVisible(False)  # По умолчанию скрыт
         
+        # Реестр «вкладка → таблица результатов» для копирования в Excel
+        self.main.result_tables = {
+            0: getattr(self.main, 'dataset_table', None),
+            2: getattr(self.main, 'pbirs_reports_table', None),
+            3: getattr(self.main, 'pbirs_sources_table', None),
+            4: getattr(self.main, 'pbirs_refresh_plans_table', None),
+        }
+        
         layout.addWidget(self.main.tab_widget)
         return panel
         
@@ -291,6 +300,9 @@ class UIPanels:
         # Контекстное меню
         self.main.dataset_table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.main.dataset_table.customContextMenuRequested.connect(self.main.show_context_menu)
+        
+        # Горячие клавиши Ctrl+A (выделить все) / Ctrl+C (копировать в Excel)
+        install_table_export(self.main.dataset_table)
         
         layout.addWidget(self.main.dataset_table)
         
@@ -578,6 +590,12 @@ class UIPanels:
         self.main.pbirs_reports_table.horizontalHeader().sectionDoubleClicked.connect(
             lambda col: self.main.sort_pbirs_table('reports', col)
         )
+        # Контекстное меню (скачать/удалить/загрузить отчёт, экспорт в Excel)
+        self.main.pbirs_reports_table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.main.pbirs_reports_table.customContextMenuRequested.connect(self.main.show_pbirs_reports_context_menu)
+        
+        # Горячие клавиши Ctrl+A (выделить все) / Ctrl+C (копировать в Excel)
+        install_table_export(self.main.pbirs_reports_table)
         
         layout.addWidget(self.main.pbirs_reports_table)
         
@@ -680,6 +698,12 @@ class UIPanels:
         self.main.pbirs_sources_table.horizontalHeader().sectionDoubleClicked.connect(
             lambda col: self.main.sort_pbirs_table('sources', col)
         )
+        # Контекстное меню (выделить все / копировать в Excel)
+        self.main.pbirs_sources_table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.main.pbirs_sources_table.customContextMenuRequested.connect(self.main.show_pbirs_sources_context_menu)
+        
+        # Горячие клавиши Ctrl+A (выделить все) / Ctrl+C (копировать в Excel)
+        install_table_export(self.main.pbirs_sources_table)
         
         layout.addWidget(self.main.pbirs_sources_table)
         
@@ -813,12 +837,16 @@ class UIPanels:
         header.setStretchLastSection(False)
         self.main.pbirs_refresh_plans_table.verticalHeader().setVisible(False)
         self.main.pbirs_refresh_plans_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.main.pbirs_refresh_plans_table.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.main.pbirs_refresh_plans_table.setEditTriggers(QTableWidget.NoEditTriggers)
         # Включаем контекстное меню
         self.main.pbirs_refresh_plans_table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.main.pbirs_refresh_plans_table.customContextMenuRequested.connect(
             self.main.show_pbirs_refresh_plans_context_menu
         )
+        
+        # Горячие клавиши Ctrl+A (выделить все) / Ctrl+C (копировать в Excel)
+        install_table_export(self.main.pbirs_refresh_plans_table)
         
         plans_layout.addWidget(self.main.pbirs_refresh_plans_table)
         plans_group.setLayout(plans_layout)
